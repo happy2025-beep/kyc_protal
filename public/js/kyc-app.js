@@ -408,12 +408,12 @@ window.kycApp = {
                     }
 
                     console.log('注册信息和风险评估提交成功');
-                    
+
                     // 保存到 sessionStorage
                     this.saveUserDataToStorage();
-                    
-                    this.showMessage('success', '注册成功！');
-                    
+
+                    this.showMessage('success', '信息保存成功');
+
                     // 进入步骤2
                     setTimeout(() => {
                         this.switchToStep(2);
@@ -1273,12 +1273,12 @@ window.kycApp = {
                         this.showMessage('error', realnameResult.message || '实名认证提交失败，请重试');
                         return;
                     }
-                    
-                    this.showMessage('success', '实名认证成功！');
-                    
+
+                    this.showMessage('success', '认证信息提交成功');
+
                     // 保存到存储
                     this.saveUserDataToStorage();
-                    
+
                     // 进入步骤3
                     setTimeout(() => {
                         this.switchToStep(3);
@@ -2019,8 +2019,8 @@ window.kycApp = {
         // 显示标题和说明
         step2Title.style.display = 'block';
         step2Desc.style.display = 'block';
-        step2Desc.textContent = '实名认证成功，正在为您登录...';
-        
+        step2Desc.textContent = '认证完成，正在为您登录...';
+
         this.showLoading('正在登录...');
         
         try {
@@ -2032,11 +2032,11 @@ window.kycApp = {
             await this.performLogin();
             
             this.hideLoading();
-            this.showMessage('success', '登录成功！');
-            
+            this.showMessage('success', '认证完成，登录成功');
+
             // 保存到 sessionStorage
             this.saveUserDataToStorage();
-            
+
             // 延迟跳转到步骤3
             setTimeout(() => {
                 this.switchToStep(3);
