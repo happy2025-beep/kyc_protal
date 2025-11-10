@@ -2096,10 +2096,10 @@ window.kycApp = {
         }
         
         const publicKey = publicKeyResult.data.publicKey;
-        
-        // 3. 使用固定密码
-        const password = 'a112233';
-        
+
+        // 3. 使用固定密码（与注册时保持一致）
+        const password = 'aa112233';
+
         // 4. 使用RSA公钥加密密码
         const encryptedPassword = this.rsaEncrypt(password, publicKey);
         if (!encryptedPassword) {
