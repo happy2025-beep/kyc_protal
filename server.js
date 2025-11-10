@@ -1965,6 +1965,120 @@ app.post('/api/auto-login', async (req, res) => {
 
 // ==================== 步骤3：银行卡认证 ====================
 
+// 获取用户 fund_account 接口
+// 接口地址：POST http://1.95.91.139:9200/306351
+app.post('/api/get-fund-account', async (req, res) => {
+  try {
+    const {
+      exchangeId = 0,
+      rootUserId,
+      userId,
+      sessionId,
+      token,
+      app_id = 'qoRz2jvwG0HmaEfxr7lV'
+    } = req.body;
+
+    console.log('\n========== 获取 Fund Account ==========');
+    console.log('userId:', userId);
+    console.log('sessionId:', sessionId);
+
+    // 数据校验
+    if (!userId || !sessionId) {
+      return res.json({
+        success: false,
+        message: '请提供 userId 和 sessionId'
+      });
+    }
+
+    const apiUrl = 'http://1.95.91.139:9200/306351';
+
+    console.log('[获取FundAccount] 发送请求到:', apiUrl);
+
+    const requestData = {
+      exchangeId,
+      rootUserId: rootUserId || userId,
+      userId,
+      sessionId,
+      token: token || '',
+      app_id
+    };
+
+    console.log('[获取FundAccount] 请求数据:', requestData);
+
+    const response = await axios.post(apiUrl, requestData, {
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'Accept-Encoding': 'gzip, deflate',
+        'Accept-Language': 'zh-CN,zh;q=0.9',
+        'Origin': 'http://1.95.91.139:8088',
+        'Referer': 'http://1.95.91.139:8088/',
+        'User-Agent': 'Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Mobile Safari/537.36'
+      },
+      timeout: 15000
+    });
+
+    console.log('[获取FundAccount] 响应:', JSON.stringify(response.data, null, 2));
+
+    // 解析响应数据
+    if (response.data && response.data.data && response.data.data.length > 0) {
+      const responseItem = response.data.data[0];
+
+      // 检查是否有 items 数组
+      if (responseItem.items && responseItem.items.length > 0) {
+        const fundAccountData = responseItem.items[0];
+        const fundAccount = fundAccountData.fund_account;
+
+        console.log('✅ 获取到 fund_account:', fundAccount);
+
+        const responseData = {
+          success: true,
+          message: '获取成功',
+          data: {
+            fund_account: fundAccount,
+            client_name: fundAccountData.client_name,
+            id_no: fundAccountData.id_no,
+            mobile: fundAccountData.mobile,
+            status: fundAccountData.status,
+            full_data: fundAccountData
+          }
+        };
+
+        logApiResponse('获取FundAccount(306351)', responseData);
+        res.json(responseData);
+      } else {
+        // 没有找到 fund_account
+        const responseData = {
+          success: false,
+          message: '未找到用户的 fund_account',
+          data: response.data
+        };
+
+        logApiResponse('获取FundAccount(306351)', responseData);
+        res.json(responseData);
+      }
+    } else {
+      const responseData = {
+        success: false,
+        message: '响应数据格式错误',
+        data: response.data
+      };
+
+      logApiResponse('获取FundAccount(306351)', responseData);
+      res.json(responseData);
+    }
+
+  } catch (error) {
+    console.error('❌ 获取 fund_account 失败:', error.message);
+
+    res.status(500).json({
+      success: false,
+      message: '获取 fund_account 失败',
+      error: error.message
+    });
+  }
+});
+
 // 绑卡收验证码接口
 // 接口地址：POST http://1.95.91.139:8088/api/uc_92300/306684
 app.post('/api/send-bank-sms-code', async (req, res) => {
@@ -1972,23 +2086,27 @@ app.post('/api/send-bank-sms-code', async (req, res) => {
     const {
       bank_code,
       bank_pro_code = 'ljyClearing',
-      fund_account = '2511100091000',
+      fund_account,  // 必须由前端提供，不设置默认值
       action_type = '1',
       mobile,
       trans_code = '10000111',
-      curr_ip = '192.168.186.17'
+      curr_ip = '192.168.186.17',
+      session_id = '',  // 接收 session_id
+      user_id = ''  // 接收 user_id
     } = req.body;
 
     console.log('\n========== 绑卡收验证码 ==========');
     console.log('银行代码:', bank_code);
     console.log('资金账号:', fund_account);
     console.log('手机号:', mobile);
+    console.log('session_id:', session_id);
+    console.log('user_id:', user_id);
 
     // 数据校验
-    if (!bank_code || !mobile) {
+    if (!bank_code || !mobile || !fund_account) {
       return res.json({
         success: false,
-        message: '请提供银行代码和手机号'
+        message: '请提供银行代码、资金账号和手机号'
       });
     }
 
@@ -2002,6 +2120,7 @@ app.post('/api/send-bank-sms-code', async (req, res) => {
       mobile,
       trans_code,
       curr_ip
+      // 不传递 session_id 和 user_id（根据真实 API 调用）
     };
 
     console.log('[绑卡收验证码] 发送请求到:', apiUrl);
@@ -2051,6 +2170,75 @@ app.post('/api/send-bank-sms-code', async (req, res) => {
     res.status(500).json({
       success: false,
       message: '验证码发送失败',
+      error: error.message
+    });
+  }
+});
+
+// 查询绑卡银行通道/配置接口（前置辅助接口）
+// 作用：在绑卡前获取某银行的通道状态、营业时间、支持的银行代码等信息
+// 原始接口：POST http://1.95.91.139:9200/306401
+// 调用时通常只需要提供用户标识、session、token、app_id。
+app.post('/api/query-bank-config', async (req, res) => {
+  try {
+    const {
+      userId,
+      sessionId,
+      token,
+      exchangeId = 0,
+      app_id = 'qoRz2jvwG0HmaEfxr7lV'
+    } = req.body;
+
+    console.log('\n========== 查询绑卡银行通道配置 ==========' );
+    console.log('userId:', userId);
+    console.log('sessionId:', sessionId ? sessionId.substring(0, 20) + '...' : '未提供');
+    console.log('exchangeId:', exchangeId);
+
+    if (!userId) {
+      return res.json({ success: false, message: '请提供用户ID userId' });
+    }
+
+    const apiUrl = `${NEW_API.baseUrl}/306401`;
+    const requestData = {
+      userId,
+      sessionId: sessionId || '',
+      exchangeId,
+      token: token || '',
+      app_id
+    };
+
+    console.log('[查询绑卡银行通道配置] 请求地址:', apiUrl);
+    console.log('[查询绑卡银行通道配置] 请求数据:', requestData);
+
+    const response = await axios.post(apiUrl, requestData, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      timeout: 15000
+    });
+
+    console.log('[查询绑卡银行通道配置] 原始响应:', response.data);
+    logApiResponse('查询绑卡银行通道配置(306401)', response.data);
+
+    if (response.data && response.data.data && response.data.data.length > 0) {
+      res.json({
+        success: true,
+        message: '查询成功',
+        data: response.data.data
+      });
+    } else {
+      res.json({
+        success: false,
+        message: '未获取到配置数据',
+        data: response.data
+      });
+    }
+  } catch (error) {
+    console.error('❌ 查询绑卡银行通道配置失败:', error.message);
+    res.status(500).json({
+      success: false,
+      message: '查询失败',
       error: error.message
     });
   }
@@ -2126,6 +2314,83 @@ app.post('/api/query-bank-branch', async (req, res) => {
   }
 });
 
+// 选择银行渠道接口（方案二）
+// 作用：根据用户标识获取银行渠道信息（接口返回可能为加密串，先透传供前端/抓包）
+// 原始接口：POST http://1.95.91.139:9200/305897
+app.post('/api/select-bank-channel-2', async (req, res) => {
+  try {
+    const {
+      user_id,
+      isFlat = false,
+      token = '',
+      sessionId = '',
+      app_id = 'qoRz2jvwG0HmaEfxr7lV'
+    } = req.body;
+
+    console.log('\n========== 选择银行渠道(方案二) ==========' );
+    console.log('user_id:', user_id);
+    console.log('sessionId:', sessionId ? sessionId.substring(0, 20) + '...' : '未提供');
+
+    if (!user_id) {
+      return res.json({ success: false, message: '请提供 user_id' });
+    }
+
+    const apiUrl = `${NEW_API.baseUrl}/305897`;
+    const requestData = {
+      user_id,
+      isFlat,
+      token,
+      sessionId,
+      app_id
+    };
+
+    console.log('[选择银行渠道-2] 请求地址:', apiUrl);
+    console.log('[选择银行渠道-2] 请求数据:', requestData);
+
+    const response = await axios.post(apiUrl, requestData, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Accept-Encoding': 'gzip, deflate',
+        'Accept-Language': 'zh-CN,zh;q=0.9',
+        'Origin': NEW_API.webUrl,
+        'Referer': `${NEW_API.webUrl}/`,
+        'User-Agent': 'Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Mobile Safari/537.36'
+      },
+      timeout: 30000
+    });
+
+    // 该接口可能返回加密/压缩后的字符串（非JSON），此处先透传
+    const raw = response.data;
+    console.log('[选择银行渠道-2] 原始响应类型:', typeof raw);
+    if (typeof raw === 'string') {
+      const responseData = { success: true, cipher: raw };
+      logApiResponse('选择银行渠道(305897)-透传', responseData);
+      return res.json(responseData);
+    }
+
+    // 若返回为JSON，则直接返回
+    const responseData = { success: true, data: raw };
+    logApiResponse('选择银行渠道(305897)-JSON', responseData);
+    res.json(responseData);
+
+  } catch (error) {
+    console.error('❌ 选择银行渠道(方案二)失败:', error.message);
+    if (error.response) {
+      return res.status(200).json({
+        success: false,
+        message: '选择银行渠道失败',
+        data: error.response.data
+      });
+    }
+    res.status(500).json({
+      success: false,
+      message: '服务器错误，请稍后重试',
+      error: error.message
+    });
+  }
+});
+
 // 提交绑卡接口
 // 接口地址: POST http://1.95.91.139:8088/api/uc_92300/306663
 app.post('/api/submit-bind-card', async (req, res) => {
@@ -2196,6 +2461,7 @@ app.post('/api/submit-bind-card', async (req, res) => {
       sms_code,
       process_type,
       curr_ip
+      // 不需要 trans_code（根据真实 API 调用）
     };
 
     console.log('[提交绑卡] 请求参数:', requestData);
@@ -2354,7 +2620,7 @@ app.post('/api/upload-image', async (req, res) => {
 app.post('/api/get-bank-list', async (req, res) => {
   try {
     const {
-      userId = '2511100091',
+      userId,  // 必须由前端提供
       exchangeId = 0,
       bank_pro_code = 'ljyClearing',
       sessionId,
@@ -2366,6 +2632,14 @@ app.post('/api/get-bank-list', async (req, res) => {
     console.log('\n========== 获取银行列表 ==========');
     console.log('用户ID:', userId);
     console.log('SessionId:', sessionId);
+
+    // 数据校验
+    if (!userId) {
+      return res.json({
+        success: false,
+        message: '请提供用户ID'
+      });
+    }
 
     const apiUrl = 'http://1.95.91.139:9200/314626';
     const requestData = {

@@ -3,6 +3,12 @@
  * 4步流程: 基本信息 -> 运营商三要素认证 -> 银行卡绑定 -> 完成
  */
 
+// BANK_CODE_MAP 已废弃：当前银行相关接口统一使用固定：
+// bank_code / bank_no -> '1001'
+// channel_bank_no     -> '104100000004'
+// 如果后续需要恢复多银行支持，可重新启用下面的映射表。
+// const BANK_CODE_MAP = { ... };
+
 window.kycApp = {
     // 当前步骤
     currentStep: 1,
@@ -39,7 +45,8 @@ window.kycApp = {
         smsCode: '',
         
         // 其他
-        session_id: ''
+        session_id: '',
+        user_token: ''  // 登录后的 token
     },
 
     /**
@@ -1507,11 +1514,15 @@ window.kycApp = {
 
             // 2. 保存注册信息
             this.showLoading('正在保存注册信息...');
+            console.log('⚡ [handleAuthSuccess] 准备调用 saveRegistrationInfo...');
             await this.saveRegistrationInfo();
+            console.log('⚡ [handleAuthSuccess] saveRegistrationInfo 完成');
 
             // 3. 完成最终注册
             this.showLoading('正在完成注册...');
+            console.log('⚡ [handleAuthSuccess] 准备调用 completeRegistration...');
             await this.completeRegistration();
+            console.log('⚡ [handleAuthSuccess] completeRegistration 完成');
 
             // 4. 自动登录
             this.showLoading('正在登录...');
@@ -1532,10 +1543,58 @@ window.kycApp = {
         } catch (error) {
             this.hideLoading();
             console.error('❌ 认证后处理失败:', error);
-            this.showMessage('error', error.message || '认证处理失败，请重试');
+            console.error('❌ 错误堆栈:', error.stack);
+            console.error('❌ 错误详情:', {
+                message: error.message,
+                name: error.name,
+                stack: error.stack
+            });
 
-            // 显示重试按钮或返回按钮
-            this.authCompleted = false; // 允许重试
+            // 判断是否为用户已注册的错误
+            if (error.message && error.message.includes('保存失败')) {
+                console.log('⚠️ 用户可能已经注册过，尝试直接登录...');
+
+                try {
+                    // 尝试直接进行自动登录
+                    this.showLoading('您可能已注册，正在尝试登录...');
+                    await this.autoLogin();
+
+                    // 登录成功
+                    this.hideLoading();
+                    this.userData.realnameCompleted = true;
+                    this.showMessage('success', '✅ 您已经注册过了！已自动登录成功，请点击"下一步"继续。');
+                    this.showNextStepButton();
+
+                } catch (loginError) {
+                    this.hideLoading();
+                    console.error('❌ 自动登录也失败:', loginError);
+                    this.showMessage('error', '您可能已经注册过了，但自动登录失败。请返回使用已有账号登录。');
+
+                    // 提供返回登录的选项
+                    const authSuccessContainer = document.getElementById('authSuccessContainer');
+                    if (authSuccessContainer) {
+                        authSuccessContainer.innerHTML = `
+                            <div style="text-align: center; padding: 20px;">
+                                <p style="color: #ef4444; margin-bottom: 20px;">
+                                    该手机号可能已经注册过，请返回使用已有账号登录。
+                                </p>
+                                <button onclick="window.location.reload()"
+                                    style="padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                                    返回首页
+                                </button>
+                            </div>
+                        `;
+                        authSuccessContainer.style.display = 'block';
+                    }
+                }
+
+            } else {
+                // 其他错误正常显示
+                this.showMessage('error', error.message || '认证处理失败，请重试');
+            }
+
+            // 允许重试
+            this.authCompleted = false;
         }
     },
 
@@ -1729,6 +1788,11 @@ window.kycApp = {
      */
     async completeRegistration() {
         console.log('🎯 开始完成最终注册...');
+        console.log('===============================================');
+        console.log('🔴🔴🔴 completeRegistration 方法已被调用！！！');
+        console.log('🔴 这是真正的 completeRegistration 方法');
+        console.log('🔴 准备调用 306118 API');
+        console.log('===============================================');
 
         // 获取RSA公钥
         const publicKeyResponse = await fetch('api/get-public-key', {
@@ -1881,6 +1945,9 @@ window.kycApp = {
                 throw new Error('验证码信息不完整');
             }
 
+            // 保存验证码 token，用于后续 API 调用（如获取 fund_account）
+            this.userData.captchaToken = captchaToken;
+
             // 2. 获取RSA公钥
             const publicKeyResponse = await fetch('api/get-public-key', {
                 method: 'POST',
@@ -1940,11 +2007,13 @@ window.kycApp = {
             // 5. 保存登录信息
             this.userData.session_id = loginResult.data.session_id;
             this.userData.user_id = loginResult.data.user_id;
+            this.userData.user_token = loginResult.data.user_token;  // 保存 token！
             this.userData.loginSuccess = true;
 
             console.log('✅ 自动登录成功！');
             console.log('  session_id:', this.userData.session_id);
             console.log('  user_id:', this.userData.user_id);
+            console.log('  user_token:', this.userData.user_token);
 
             // 保存到存储
             this.saveUserDataToStorage();
@@ -2002,151 +2071,6 @@ window.kycApp = {
             window.removeEventListener('message', this.messageHandler);
             this.messageHandler = null;
         }
-    },
-    
-    /**
-     * 处理认证完成回调
-     */
-    async handleAuthComplete(data) {
-        console.log('✅ 认证完成:', data);
-        
-        // 关闭 iframe
-        const eContractContainer = document.getElementById('eContractContainer');
-        const eContractFrame = document.getElementById('eContractFrame');
-        const step2Title = document.getElementById('step2Title');
-        const step2Desc = document.getElementById('step2Desc');
-        
-        // 清空 iframe
-        eContractFrame.src = '';
-        eContractContainer.style.display = 'none';
-        
-        // 显示标题和说明
-        step2Title.style.display = 'block';
-        step2Desc.style.display = 'block';
-        step2Desc.textContent = '认证完成，正在为您登录...';
-
-        this.showLoading('正在登录...');
-        
-        try {
-            // 保存认证结果
-            this.userData.authCompleted = true;
-            this.userData.authResult = data;
-            
-            // 调用登录接口
-            await this.performLogin();
-            
-            this.hideLoading();
-            this.showMessage('success', '认证完成，登录成功');
-
-            // 保存到 sessionStorage
-            this.saveUserDataToStorage();
-
-            // 延迟跳转到步骤3
-            setTimeout(() => {
-                this.switchToStep(3);
-            }, 1500);
-            
-        } catch (error) {
-            this.hideLoading();
-            console.error('登录失败:', error);
-            this.showMessage('error', error.message || '登录失败，请重试');
-        }
-    },
-    /**
-     * 执行登录操作（自动登录，认证完成后调用）
-     */
-    async performLogin() {
-        console.log('开始执行自动登录...');
-        
-        // 1. 获取验证码
-        console.log('🔄 自动获取验证码...');
-        const captchaResponse = await fetch('api/get-verify-code', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                imageCodeOn: true,
-                app_id: 'qoRz2jvwG0HmaEfxr7lV'
-            })
-        });
-        
-        const captchaResult = await captchaResponse.json();
-        
-        if (!captchaResult.success) {
-            throw new Error(captchaResult.message || '获取验证码失败');
-        }
-        
-        const captchaToken = captchaResult.data.token;
-        const captchaText = captchaResult.data.varifyCode;
-        
-        console.log('✅ 验证码获取成功:', captchaText);
-        
-        // 2. 获取RSA公钥
-        const publicKeyResponse = await fetch('api/get-public-key', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                app_id: 'qoRz2jvwG0HmaEfxr7lV'
-            })
-        });
-        
-        const publicKeyResult = await publicKeyResponse.json();
-        
-        if (!publicKeyResult.success) {
-            throw new Error('获取加密密钥失败');
-        }
-        
-        const publicKey = publicKeyResult.data.publicKey;
-
-        // 3. 使用固定密码（与注册时保持一致）
-        const password = 'aa112233';
-
-        // 4. 使用RSA公钥加密密码
-        const encryptedPassword = this.rsaEncrypt(password, publicKey);
-        if (!encryptedPassword) {
-            throw new Error('密码加密失败');
-        }
-        
-        // 5. 调用登录接口（使用登录账号，使用自动获取的验证码）
-        console.log('🔐 准备登录，账号:', this.userData.loginAccount);
-
-        const loginRequestData = {
-            token: captchaToken,
-            pwdCode: encryptedPassword,
-            userAccount: this.userData.loginAccount,  // 使用登录账号
-            checkCode: captchaText,
-            publicKey: publicKey,
-            app_id: 'qoRz2jvwG0HmaEfxr7lV'
-        };
-
-        console.log('📤 登录请求参数:', JSON.stringify(loginRequestData, null, 2));
-
-        const loginResponse = await fetch('api/user-login', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(loginRequestData)
-        });
-        
-        const loginResult = await loginResponse.json();
-        
-        if (!loginResult.success) {
-            throw new Error(loginResult.message || '登录失败');
-        }
-        
-        // 6. 保存登录返回的session_id和user_id（重要：用登录的session_id替换注册的session_id）
-        this.userData.session_id = loginResult.data.session_id;
-        this.userData.user_id = loginResult.data.user_id;
-        this.userData.loginSuccess = true;
-        
-        console.log('✅ 自动登录成功，session_id:', this.userData.session_id);
-        console.log('✅ user_id:', this.userData.user_id);
-        
-        return loginResult;
     },
     
     /**
@@ -2427,11 +2351,49 @@ window.kycApp = {
     async setupStep3() {
         console.log('📋 初始化步骤3：银行卡认证');
 
+        // ========== 0. 检查验证码 token 状态 ==========
+        if (!this.userData.captchaToken) {
+            console.log('⚠️ 缺少验证码 token');
+
+            // 只在以下情况获取新 token：
+            // 1. 从外部直接进入步骤3（比如页面刷新）
+            // 2. 没有经过正常的登录流程
+            if (!this.userData.session_id || !this.userData.user_id) {
+                console.log('📝 检测到非正常流程进入，需要获取新 token...');
+                try {
+                    const captchaResponse = await fetch('api/get-verify-code', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            imageCodeOn: false,  // 不需要显示图片
+                            app_id: 'qoRz2jvwG0HmaEfxr7lV'
+                        })
+                    });
+
+                    const captchaResult = await captchaResponse.json();
+                    if (captchaResult.success && captchaResult.data && captchaResult.data.token) {
+                        this.userData.captchaToken = captchaResult.data.token;
+                        console.log('✅ 获取到新的验证码 token:', this.userData.captchaToken);
+                    }
+                } catch (error) {
+                    console.error('❌ 获取验证码 token 失败:', error);
+                }
+            } else {
+                // 有 session 但没有 token，这是异常情况
+                console.warn('⚠️ 有登录会话但缺少 token，可能需要重新登录');
+                // 不自动获取新 token，避免影响现有会话
+            }
+        } else {
+            console.log('✅ 使用现有的验证码 token:', this.userData.captchaToken);
+        }
+
         // ========== 1. 填充只读字段 ==========
 
-        // 资金账号（固定值）
-        const fundAccountNumber = '2511100091000';
-        document.getElementById('fundAccount').value = fundAccountNumber;
+        // 资金账号（动态获取）
+        // 立即获取并显示 fund_account
+        this.getFundAccountForDisplay();
 
         // 填充用户姓名
         document.getElementById('step3UserName').value = this.userData.realName || '';
@@ -2442,14 +2404,14 @@ window.kycApp = {
         // 填充手机号码（默认值，用户可修改）
         document.getElementById('step3Mobile').value = this.userData.mobile || '';
 
-        console.log('✅ 只读字段填充完成:', {
-            fundAccount: fundAccountNumber,
+        console.log('✅ 只读字段填充完成（fund_account 稍后动态获取）:', {
             userName: this.userData.realName,
             idCard: this.userData.idCard,
             mobile: this.userData.mobile
         });
 
         // ========== 2. 填充银行选择下拉框 ==========
+        // ✅ 现在会优先从 314626 真实接口获取银行列表
         await this.populateBankSelect();
 
         // ========== 3. 绑定事件 ==========
@@ -2476,7 +2438,8 @@ window.kycApp = {
                 this.userData.recognizedBankName = '';
                 document.getElementById('bankRecognitionSuccess').style.display = 'none';
                 document.getElementById('bankRecognitionFail').style.display = 'none';
-                document.getElementById('btnToggleBankSelect').style.display = 'none';
+                // 保持手动选择按钮始终可见
+                // document.getElementById('btnToggleBankSelect').style.display = 'none';
             }
         });
 
@@ -2505,17 +2468,26 @@ window.kycApp = {
                     // 识别成功
                     this.userData.recognizedBankName = detectedBank;
                     this.userData.bankCode = window.getBankCode(detectedBank);
+                    // bankShortCode 已废弃，统一使用固定 '1001'
+                    this.userData.bankShortCode = '1001';
+                    
+                    // ⚠️ 获取银行的 channel_bank_no（长码）
+                    // 优先从完整数据中查找，否则使用默认映射
+                    this.userData.selectedBankChannelNo = this.getBankChannelNo(detectedBank);
 
                     console.log('✅ 银行识别成功:', {
                         bankName: detectedBank,
-                        bankCode: this.userData.bankCode
+                        bankCode: this.userData.bankCode,
+                        bankShortCode: this.userData.bankShortCode,
+                        channelBankNo: this.userData.selectedBankChannelNo
                     });
 
                     // 显示识别成功提示
                     document.getElementById('recognizedBankName').textContent = detectedBank;
                     document.getElementById('bankRecognitionSuccess').style.display = 'inline';
                     document.getElementById('bankRecognitionFail').style.display = 'none';
-                    document.getElementById('btnToggleBankSelect').style.display = 'none';
+                    // 保持手动选择按钮可见，用户可以选择覆盖自动识别结果
+                    // document.getElementById('btnToggleBankSelect').style.display = 'none';
 
                     // 隐藏手动选择区域
                     bankSelectGroup.style.display = 'none';
@@ -2523,13 +2495,15 @@ window.kycApp = {
                     // 识别失败
                     this.userData.recognizedBankName = '';
                     this.userData.bankCode = '';
+                    this.userData.bankShortCode = '1001'; // 识别失败仍保持默认值，后端固定处理
 
                     console.log('⚠️ 银行识别失败，需要手动选择');
 
-                    // 显示识别失败提示和手动选择按钮
+                    // 显示识别失败提示，手动选择按钮始终可见
                     document.getElementById('bankRecognitionSuccess').style.display = 'none';
                     document.getElementById('bankRecognitionFail').style.display = 'inline';
-                    document.getElementById('btnToggleBankSelect').style.display = 'inline-block';
+                    // 手动选择按钮保持可见
+                    // document.getElementById('btnToggleBankSelect').style.display = 'inline-block';
                 }
             }
         });
@@ -2539,7 +2513,12 @@ window.kycApp = {
         const bankListDropdown = document.getElementById('bankListDropdown');
 
         btnToggleBankSelect.addEventListener('click', () => {
-            if (bankSelectGroup.style.display === 'none') {
+            console.log('🔘 手动选择按钮被点击');
+            console.log('  当前 bankSelectGroup 显示状态:', bankSelectGroup.style.display);
+            console.log('  银行列表数据:', this.bankListData ? `已加载 ${this.bankListData.length} 家银行` : '未加载');
+
+            if (bankSelectGroup.style.display === 'none' || !bankSelectGroup.style.display) {
+                console.log('  → 显示银行选择界面');
                 bankSelectGroup.style.display = 'block';
                 btnToggleBankSelect.textContent = '隐藏选择';
                 // 聚焦到搜索框
@@ -2547,8 +2526,10 @@ window.kycApp = {
                     bankSearchInput.focus();
                     this.renderBankDropdown(this.bankListData || []);
                     bankListDropdown.style.display = 'block';
+                    console.log('  → 银行下拉列表已显示');
                 }, 100);
             } else {
+                console.log('  → 隐藏银行选择界面');
                 bankSelectGroup.style.display = 'none';
                 bankListDropdown.style.display = 'none';
                 btnToggleBankSelect.textContent = '手动选择';
@@ -2617,27 +2598,79 @@ window.kycApp = {
             this.showLoading('正在提交绑卡...');
 
             try {
-                // 调用提交绑卡接口
+                // 获取 fund_account（如果还没有的话）
+                if (!this.userData.fundAccount) {
+                    console.log('📤 [获取FundAccount] 开始获取用户的 fund_account...');
+
+                    this.showLoading('正在获取账户信息...');
+
+                    const fundAccountResponse = await fetch('api/get-fund-account', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            userId: this.userData.user_id,
+                            sessionId: this.userData.session_id,
+                            rootUserId: this.userData.user_id,
+                            exchangeId: 0,
+                            app_id: 'qoRz2jvwG0HmaEfxr7lV'
+                        })
+                    });
+
+                    const fundAccountResult = await fundAccountResponse.json();
+                    console.log('📥 [获取FundAccount] 响应:', fundAccountResult);
+
+                    if (!fundAccountResult.success) {
+                        throw new Error(fundAccountResult.message || '获取账户信息失败');
+                    }
+
+                    // 保存 fund_account
+                    this.userData.fundAccount = fundAccountResult.data.fund_account;
+                    console.log('✅ [获取FundAccount] 成功获取 fund_account:', this.userData.fundAccount);
+                }
+
+                this.showLoading('正在提交绑卡...');
+
+                // ⚠️ 关键：channel_bank_no 应该从 314626 银行渠道列表中获取
+                // 当前临时方案：
+                // - bank_no: 保持短码 '1001'（后端兼容旧系统）
+                // - channel_bank_no: 应该用所选银行的真实长码（当前写死会导致银行不匹配）
+                // TODO: 改为 channel_bank_no = this.userData.selectedBankChannelNo
+                const channelBankNo = this.userData.selectedBankChannelNo || '104100000004';
+                
                 console.log('📤 [提交绑卡] 准备提交:', {
                     bank_account: this.userData.bankCard,
-                    bank_no: this.userData.bankCode,
+                    bank_no: '1001',  // 短码（兼容旧系统）
+                    channel_bank_no: channelBankNo,  // ⚠️ 应该是所选银行的长码
                     bank_name: this.userData.recognizedBankName,
                     mobile: this.userData.bankPhone,
                     client_name: this.userData.realName,
-                    fund_account: '2511100091000',
+                    fund_account: this.userData.fundAccount,
                     id_no: this.userData.idCard,
-                    sms_code: bankSmsCode
+                    sms_code: bankSmsCode,
+                    session_id: this.userData.session_id || '',
+                    user_id: this.userData.user_id || ''
                 });
+
+                // 确保验证码不为空
+                if (!bankSmsCode) {
+                    throw new Error('请输入短信验证码');
+                }
+
+                console.log('⏰ 提交时间:', new Date().toLocaleTimeString());
+                console.log('📝 验证码长度:', bankSmsCode.length);
 
                 const response = await fetch('api/submit-bind-card', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         bank_account: this.userData.bankCard,
-                        bank_no: this.userData.bankCode,
+                        bank_no: '1001',  // 短码（兼容）
+                        channel_bank_no: channelBankNo,  // 动态长码
                         mobile: this.userData.bankPhone,
                         client_name: this.userData.realName,
-                        fund_account: '2511100091000',
+                        fund_account: this.userData.fundAccount,
                         id_no: this.userData.idCard,
                         sms_code: bankSmsCode,
                         session_id: this.userData.session_id || '',
@@ -2674,6 +2707,68 @@ window.kycApp = {
     },
 
     /**
+     * 获取并显示用户的 fund_account
+     */
+    async getFundAccountForDisplay() {
+        try {
+            // 如果已经有 fund_account 就直接显示
+            if (this.userData.fundAccount) {
+                document.getElementById('fundAccount').value = this.userData.fundAccount;
+                console.log('✅ [显示FundAccount] 使用缓存的 fund_account:', this.userData.fundAccount);
+                return;
+            }
+
+            // 如果没有 user_id 或 session_id，暂时显示加载中
+            if (!this.userData.user_id || !this.userData.session_id) {
+                document.getElementById('fundAccount').value = '加载中...';
+                console.log('⚠️ [显示FundAccount] 缺少 user_id 或 session_id，暂时无法获取');
+                return;
+            }
+
+            // 显示加载提示
+            document.getElementById('fundAccount').value = '正在获取...';
+
+            console.log('📤 [显示FundAccount] 开始获取用户的 fund_account...');
+            console.log('  使用的 captchaToken:', this.userData.captchaToken);
+            console.log('  使用的 user_id:', this.userData.user_id);
+            console.log('  使用的 session_id:', this.userData.session_id);
+
+            const response = await fetch('api/get-fund-account', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    userId: this.userData.user_id,
+                    sessionId: this.userData.session_id,
+                    rootUserId: this.userData.user_id,
+                    exchangeId: 0,
+                    token: this.userData.captchaToken || '',  // 使用验证码 token！
+                    app_id: 'qoRz2jvwG0HmaEfxr7lV'
+                })
+            });
+
+            const result = await response.json();
+            console.log('📥 [显示FundAccount] 响应:', result);
+
+            if (result.success && result.data.fund_account) {
+                // 保存并显示 fund_account
+                this.userData.fundAccount = result.data.fund_account;
+                document.getElementById('fundAccount').value = this.userData.fundAccount;
+                console.log('✅ [显示FundAccount] 成功获取并显示 fund_account:', this.userData.fundAccount);
+            } else {
+                // 显示错误或默认值
+                document.getElementById('fundAccount').value = '获取失败';
+                console.error('❌ [显示FundAccount] 获取失败:', result.message);
+            }
+
+        } catch (error) {
+            console.error('❌ [显示FundAccount] 获取异常:', error);
+            document.getElementById('fundAccount').value = '获取失败';
+        }
+    },
+
+    /**
      * 发送银行卡短信验证码
      */
     async sendBankSmsCode() {
@@ -2701,12 +2796,49 @@ window.kycApp = {
             return;
         }
 
-        this.showLoading();
+        this.showLoading('正在获取账户信息...');
 
         try {
+            // 1. 先获取 fund_account（如果还没有的话）
+            if (!this.userData.fundAccount) {
+                console.log('📤 [获取FundAccount] 开始获取用户的 fund_account...');
+
+                const fundAccountResponse = await fetch('api/get-fund-account', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        userId: this.userData.user_id,
+                        sessionId: this.userData.session_id,
+                        rootUserId: this.userData.user_id,
+                        exchangeId: 0,
+                        app_id: 'qoRz2jvwG0HmaEfxr7lV'
+                    })
+                });
+
+                const fundAccountResult = await fundAccountResponse.json();
+                console.log('📥 [获取FundAccount] 响应:', fundAccountResult);
+
+                if (!fundAccountResult.success) {
+                    throw new Error(fundAccountResult.message || '获取账户信息失败');
+                }
+
+                // 保存 fund_account
+                this.userData.fundAccount = fundAccountResult.data.fund_account;
+                console.log('✅ [获取FundAccount] 成功获取 fund_account:', this.userData.fundAccount);
+            }
+
+            // 2. 发送验证码
+            this.showLoading('正在发送验证码...');
+
+            // ⚠️ 临时方案：bank_code 写死为 '1001'
+            // TODO: 向后端确认是否需要动态使用 314626 返回的 bank_no
+            // 或者是否需要建立 长码->短码 的映射关系
             console.log('📤 [绑卡短信] 发送验证码请求:', {
                 bank_name: this.userData.recognizedBankName,
-                bank_code: this.userData.bankCode,
+                bank_code: '1001',  // ⚠️ 写死短码，待确认
+                fund_account: this.userData.fundAccount,
                 mobile: bankPhone
             });
 
@@ -2716,8 +2848,10 @@ window.kycApp = {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    bank_code: this.userData.bankCode,
+                    bank_code: '1001',  // ⚠️ 写死短码，待确认
+                    fund_account: this.userData.fundAccount,  // 使用动态获取的 fund_account
                     mobile: bankPhone
+                    // 不传递 session_id 和 user_id（根据真实 API 调用）
                 })
             });
 
@@ -2728,10 +2862,17 @@ window.kycApp = {
             console.log('📥 [绑卡短信] 响应结果:', result);
 
             if (result.success) {
-                this.showMessage('success', '验证码已发送，请查收短信');
+                this.showMessage('success', '验证码已发送，请查收短信（验证码有效期2分钟，请尽快输入）');
 
                 // 倒计时
                 this.startCountdown(btnSendBankSmsCode, 60);
+
+                // 聚焦到验证码输入框
+                const smsCodeInput = document.getElementById('bankSmsCode');
+                if (smsCodeInput) {
+                    smsCodeInput.focus();
+                    console.log('📝 请尽快输入验证码，有效期2分钟');
+                }
             } else {
                 throw new Error(result.message || '发送验证码失败');
             }
@@ -2818,11 +2959,11 @@ window.kycApp = {
     },
 
     /**
-     * 完成注册
+     * 显示注册完成消息（步骤4使用）
      */
-    completeRegistration() {
+    showRegistrationSuccess() {
         this.showMessage('success', '注册已完成！您可以使用绑定的银行卡进行转账入金。');
-        console.log('✅ 注册流程完成');
+        console.log('✅ 注册流程完成提示');
     },
 
     /**
@@ -2894,27 +3035,45 @@ window.kycApp = {
     },
 
     /**
-     * 填充银行选择下拉框（从JSON文件加载）
+     * 填充银行选择下拉框（从本地 JSON 文件加载，已包含完整的 bank_no 长码）
      */
     async populateBankSelect() {
+        console.log('📂 开始加载银行列表...');
+        
         try {
-            // 从JSON文件加载银行列表
-            const response = await fetch('data/bank-list.json');
-            const banks = await response.json();
+            // ✅ 优先从本地 JSON 文件加载（已包含完整的 bank_no 长码数据）
+            console.log('📂 从本地 JSON 文件加载银行列表...');
+            const jsonResponse = await fetch('data/bank-list.json');
+            
+            if (jsonResponse.ok) {
+                const banks = await jsonResponse.json();
+                console.log('  成功解析 JSON，银行数量:', banks.length);
 
-            // 提取银行名称列表（用于搜索选择）
-            this.bankListData = banks.map(b => b.bank_name);
+                this.bankListData = banks.map(b => b.bank_name);
+                this.bankFullData = banks;  // ✅ 包含完整的 bank_no 长码
 
-            // 保存完整的银行数据（包含bank_no）
-            this.bankFullData = banks;
+                console.log('✅ 银行列表已加载（来自本地JSON），共', banks.length, '家银行');
+                console.log('  前3家银行示例:', this.bankFullData.slice(0, 3));
+                return;
+            }
 
-            console.log('✅ 银行列表已加载，共', banks.length, '家银行');
+            throw new Error('本地 JSON 加载失败');
+
         } catch (error) {
             console.error('❌ 加载银行列表失败:', error);
-            // 降级到本地硬编码的银行列表
-            const banks = window.getAllBanks();
-            this.bankListData = banks;
-            console.log('⚠️ 使用本地银行列表，共', banks.length, '家银行');
+            console.log('  尝试使用硬编码备份...');
+
+            // 降级方案：使用硬编码的银行列表
+            if (window.getAllBanks) {
+                const banks = window.getAllBanks();
+                this.bankListData = banks;
+                this.bankFullData = []; // 硬编码列表没有 bank_no，会使用映射表
+                console.log('⚠️ 使用硬编码银行列表，共', banks.length, '家银行');
+            } else {
+                console.error('❌ 所有备份方案均失败，银行列表为空');
+                this.bankListData = [];
+                this.bankFullData = [];
+            }
         }
     },
 
@@ -2980,10 +3139,17 @@ window.kycApp = {
         // 保存银行信息
         this.userData.recognizedBankName = bankName;
         this.userData.bankCode = bankCode;
+        // bankShortCode 固定化：不再依赖映射
+        this.userData.bankShortCode = '1001';
+        
+        // ⚠️ 获取银行的 channel_bank_no（长码）
+        this.userData.selectedBankChannelNo = this.getBankChannelNo(bankName);
 
         console.log('✅ 手动选择银行:', {
             bankName: bankName,
-            bankCode: this.userData.bankCode
+            bankCode: this.userData.bankCode,
+            bankShortCode: this.userData.bankShortCode,
+            channelBankNo: this.userData.selectedBankChannelNo
         });
 
         // 更新识别成功提示
@@ -3279,6 +3445,52 @@ window.kycApp = {
                 modal.style.display = 'none';
             }
         };
+    },
+
+    /**
+     * 获取银行的渠道长编码（channel_bank_no）
+     * 优先级：本地JSON（已包含完整bank_no） > 硬编码映射表
+     */
+    getBankChannelNo(bankName) {
+        // 优先从完整银行数据中查找（来自本地 JSON）
+        if (this.bankFullData && this.bankFullData.length > 0) {
+            const bankData = this.bankFullData.find(b => b.bank_name === bankName);
+            if (bankData && bankData.bank_no) {
+                console.log(`✅ 从本地数据找到 ${bankName} 的长码:`, bankData.bank_no);
+                return bankData.bank_no;
+            }
+        }
+
+        // 降级到硬编码映射（主要银行，用于兜底）
+        console.log(`⚠️ 数据中未找到 ${bankName}，使用硬编码映射表`);
+        const channelMapping = {
+            '中国工商银行': '102100099996',
+            '中国农业银行': '103100000026',
+            '中国银行': '104100000004',
+            '中国建设银行': '105100000017',
+            '交通银行': '301290000007',
+            '中国邮政储蓄银行': '403100000004',
+            '招商银行': '308584000013',
+            '中信银行': '302100011000',
+            '中国光大银行': '303100000006',
+            '中国民生银行': '305100000013',
+            '兴业银行': '309391000011',
+            '平安银行': '307584007998',
+            '上海浦东发展银行': '310290000013',
+            '广东发展银行': '306581000003',
+            '华夏银行': '304100040000',
+            '北京银行': '313100000013'
+        };
+
+        const channelNo = channelMapping[bankName];
+        if (channelNo) {
+            console.log(`✅ 映射表找到 ${bankName} 的长码:`, channelNo);
+            return channelNo;
+        }
+        
+        // 最终兜底：默认中行长码
+        console.warn(`❌ 未找到 ${bankName} 的长码，使用默认值（中行）`);
+        return '104100000004';
     },
 
     /**
