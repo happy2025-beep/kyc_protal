@@ -1,0 +1,495 @@
+/* Tab-based Step Styles */
+
+/* 进度条样式优化 */
+.progress-bar {
+    cursor: default;
+}
+
+.progress-step {
+    position: relative;
+    cursor: default;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 步骤圆圈基础样式 */
+.step-circle {
+    position: relative;
+    overflow: visible;
+}
+
+/* 当前激活步骤 */
+.progress-step.active .step-circle {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1), 
+                0 4px 20px rgba(102, 126, 234, 0.3);
+    transform: scale(1.15);
+    animation: pulse 2s ease-in-out infinite;
+}
+
+.progress-step.active .step-label {
+    color: #667eea;
+    font-weight: 600;
+    font-size: 15px;
+}
+
+/* 已完成步骤 */
+.progress-step.completed .step-circle {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: transparent;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1),
+                0 3px 15px rgba(16, 185, 129, 0.2);
+    position: relative;
+}
+
+.progress-step.completed .step-label {
+    color: #10b981;
+    font-weight: 500;
+}
+
+/* 完成对勾样式 */
+.progress-step.completed .step-circle::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 8px;
+    height: 14px;
+    border: solid white;
+    border-width: 0 2.5px 2.5px 0;
+    transform: translate(-50%, -60%) rotate(45deg);
+    animation: checkmark 0.4s ease-out;
+}
+
+/* 对勾动画 */
+@keyframes checkmark {
+    0% {
+        width: 0;
+        height: 0;
+        opacity: 0;
+    }
+    50% {
+        width: 8px;
+        height: 0;
+        opacity: 1;
+    }
+    100% {
+        width: 8px;
+        height: 14px;
+        opacity: 1;
+    }
+}
+
+/* 脉冲动画 */
+@keyframes pulse {
+    0%, 100% {
+        box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1), 
+                    0 4px 20px rgba(102, 126, 234, 0.3);
+    }
+    50% {
+        box-shadow: 0 0 0 8px rgba(102, 126, 234, 0.05), 
+                    0 4px 25px rgba(102, 126, 234, 0.4);
+    }
+}
+
+/* 已完成的连接线 */
+.progress-line.completed {
+    background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2);
+}
+
+/* 步骤内容容器 */
+.step-content {
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* 表单样式 */
+.kyc-form {
+    width: 100%;
+}
+
+.section-desc {
+    color: #6b7280;
+    font-size: 14px;
+    margin-bottom: 24px;
+    line-height: 1.6;
+}
+
+/* 上传区域样式 */
+.upload-area {
+    position: relative;
+    border: 2px dashed #d1d5db;
+    border-radius: 12px;
+    padding: 24px;
+    text-align: center;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    background: #f9fafb;
+}
+
+.upload-area:hover {
+    border-color: #667eea;
+    background: #f3f4ff;
+}
+
+.upload-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.upload-icon {
+    font-size: 48px;
+    margin-bottom: 8px;
+}
+
+.upload-placeholder p {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 500;
+    color: #374151;
+}
+
+.upload-hint {
+    font-size: 13px;
+    color: #9ca3af;
+}
+
+.preview-image {
+    max-width: 100%;
+    max-height: 300px;
+    border-radius: 8px;
+    object-fit: contain;
+}
+
+.btn-reupload {
+    margin-top: 16px;
+    padding: 8px 20px;
+    background: white;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    color: #667eea;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-reupload:hover {
+    background: #f3f4ff;
+    border-color: #667eea;
+}
+
+/* 支付信息卡片 */
+.payment-info-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.info-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #111827;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #f3f4f6;
+}
+
+.info-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 0;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.info-row:last-child {
+    border-bottom: none;
+}
+
+.info-label {
+    font-size: 14px;
+    color: #6b7280;
+    min-width: 100px;
+}
+
+.info-value {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    font-size: 15px;
+    color: #111827;
+    font-weight: 500;
+}
+
+.copy-btn {
+    padding: 6px 16px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.copy-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.copy-btn:active {
+    transform: translateY(0);
+}
+
+.success-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: #10b981;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.success-indicator svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* 注意事项框 */
+.notice-box {
+    background: linear-gradient(135deg, #fff5f5 0%, #fff1f1 100%);
+    border-left: 4px solid #ef4444;
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+}
+
+.notice-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #991b1b;
+    margin-bottom: 8px;
+}
+
+.notice-content {
+    font-size: 14px;
+    color: #7f1d1d;
+    line-height: 1.8;
+}
+
+/* 提示框 */
+.tips-box {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-top: 20px;
+}
+
+/* 步骤导航按钮组 */
+.step-navigation {
+    display: flex;
+    gap: 12px;
+    margin-top: 32px;
+    padding-top: 24px;
+    border-top: 1px solid #f3f4f6;
+}
+
+.btn-prev,
+.btn-next {
+    flex: 1;
+    padding: 14px 24px;
+    border: none;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.btn-prev {
+    background: white;
+    color: #6b7280;
+    border: 2px solid #e5e7eb;
+}
+
+.btn-prev:hover:not(:disabled) {
+    background: #f9fafb;
+    border-color: #d1d5db;
+    color: #374151;
+    transform: translateX(-2px);
+}
+
+.btn-prev:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-next {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.btn-next:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+}
+
+.btn-next:disabled {
+    background: #e5e7eb;
+    color: #9ca3af;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+/* 提交按钮在导航组中的样式 */
+.step-navigation .btn-submit {
+    flex: 1;
+    margin: 0;
+}
+
+/* 单个按钮时占满整行 */
+.btn-single {
+    width: 100%;
+}
+
+/* 完成按钮 */
+.btn-complete {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    margin-bottom: 20px;
+}
+
+.btn-complete:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .info-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .info-value {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .info-label {
+        min-width: auto;
+    }
+
+    .step-navigation {
+        flex-direction: column;
+    }
+
+    .btn-prev,
+    .btn-next,
+    .step-navigation .btn-submit {
+        width: 100%;
+    }
+}
+
+/* 电子合同 iframe 样式 */
+#eContractContainer {
+    margin: 20px 0;
+}
+
+#eContractFrame {
+    transition: opacity 0.3s ease;
+}
+
+#eContractFrame:not([src]) {
+    opacity: 0;
+}
+
+.btn-link {
+    padding: 4px 8px;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.btn-link:hover {
+    opacity: 0.8;
+    transform: translateY(-1px);
+}
+
+.btn-link:active {
+    transform: translateY(0);
+}
+
+/* ===================== */
+/* Step4 付款信息行优化   */
+/* 目标：尽量一行展示，值过长省略号，并保留复制按钮 */
+/* ===================== */
+.payment-info-card .info-row {
+    flex-direction: row;               /* 保持一行 */
+    align-items: center;
+    gap: 12px;
+}
+
+.payment-info-card .info-label {
+    min-width: 72px;                   /* 紧凑一些的标签宽度 */
+    flex: 0 0 auto;
+}
+
+.payment-info-card .info-value {
+    flex: 1 1 auto;
+    min-width: 0;                      /* 允许子项压缩，启用省略号 */
+    margin-left: 0 !important;         /* 覆盖内联样式的 margin-left:auto */
+    justify-content: flex-start;        /* 文本在左，按钮在右 */
+    gap: 10px;
+}
+
+.payment-info-card .info-value > span {
+    flex: 1 1 auto;                    /* 文本占据剩余空间 */
+    min-width: 0;
+    overflow: hidden;                  /* 超出隐藏 */
+    text-overflow: ellipsis;           /* 显示省略号 */
+    white-space: nowrap;               /* 不换行 */
+}
+
+.payment-info-card .copy-btn {
+    flex-shrink: 0;                    /* 按钮不被压缩 */
+}
+
+/* 移动端也保持一行显示（仅限 step4 卡片） */
+@media (max-width: 768px) {
+    .payment-info-card .info-row {
+        flex-direction: row;           /* 不折行到两行 */
+    }
+
+    .payment-info-card .info-label {
+        min-width: 68px;               /* 更紧凑 */
+    }
+
+    .payment-info-card .info-value {
+        width: auto;                   /* 不强制 100% 宽度 */
+        justify-content: space-between;
+    }
+}

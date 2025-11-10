@@ -1,0 +1,49 @@
+# 部署时忽略的文件和目录
+
+# 依赖
+node_modules/
+package-lock.json
+
+# Git
+.git/
+.gitignore
+
+# 日志
+*.log
+logs/
+
+# 上传文件
+uploads/*
+
+# 环境变量
+.env.local
+.env.*.local
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 编辑器
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 文档
+docs/
+*.md
+!README.md
+
+# 部署脚本
+deploy.sh
+.deployignore
+
+# 测试
+test/
+tests/
+*.test.js
+
+# 其他
+.editorconfig
+.eslintrc*
+.prettierrc*

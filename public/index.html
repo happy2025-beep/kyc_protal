@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>快捷支付 - KYC认证</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/kyc-steps.css">
+    <!-- RSA加密库 -->
+    <script src="https://cdn.jsdelivr.net/npm/jsencrypt@3.3.2/bin/jsencrypt.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- 头部 -->
+        <header class="header">
+            <div class="header-icon">⚡</div>
+            <h1 class="header-title">快捷支付</h1>
+            <p class="header-subtitle">安全、便捷的支付体验</p>
+        </header>
+
+        <!-- 进度条 -->
+        <div class="progress-bar">
+            <div class="progress-step" data-step="1">
+                <div class="step-circle">1</div>
+                <div class="step-label">基本信息</div>
+            </div>
+            <div class="progress-line"></div>
+            <div class="progress-step" data-step="2">
+                <div class="step-circle">2</div>
+                <div class="step-label">实名认证</div>
+            </div>
+            <div class="progress-line"></div>
+            <div class="progress-step" data-step="3">
+                <div class="step-circle">3</div>
+                <div class="step-label">银行卡绑定</div>
+            </div>
+            <div class="progress-line"></div>
+            <div class="progress-step" data-step="4">
+                <div class="step-circle">4</div>
+                <div class="step-label">完成注册</div>
+            </div>
+        </div>
+
+        <!-- 主要内容 -->
+        <main class="main-content">
+            <!-- 步骤1: 基本信息 -->
+            <div class="step-content" id="step1">
+                <h2 class="section-title">基本信息</h2>
+                <p class="section-desc">请上传身份证并填写真实的个人信息</p>
+
+                <form id="step1Form" class="kyc-form">
+                    <!-- 身份证正面 -->
+                    <div class="form-group">
+                        <label for="idCardFront" class="form-label">身份证正面照 <span style="color: #ef4444;">*</span></label>
+                        <div class="upload-area" id="uploadFront">
+                            <input 
+                                type="file" 
+                                id="idCardFront" 
+                                name="idCardFront" 
+                                accept="image/*"
+                                capture="environment"
+                                style="display: none;"
+                            >
+                            <div class="upload-placeholder" id="placeholderFront">
+                                <div class="upload-icon">📷</div>
+                                <p>拍摄或上传身份证正面</p>
+                                <span class="upload-hint">人像面 | 支持OCR自动识别</span>
+                            </div>
+                            <img id="previewFront" class="preview-image" style="display: none;">
+                            <button type="button" class="btn-reupload" id="reuploadFront" style="display: none;">
+                                重新上传
+                            </button>
+                        </div>
+                        <span class="error-message" id="idCardFrontError"></span>
+                    </div>
+
+                    <!-- 身份证反面 -->
+                    <div class="form-group">
+                        <label for="idCardBack" class="form-label">身份证反面照 <span style="color: #ef4444;">*</span></label>
+                        <div class="upload-area" id="uploadBack">
+                            <input 
+                                type="file" 
+                                id="idCardBack" 
+                                name="idCardBack" 
+                                accept="image/*"
+                                capture="environment"
+                                style="display: none;"
+                            >
+                            <div class="upload-placeholder" id="placeholderBack">
+                                <div class="upload-icon">📷</div>
+                                <p>拍摄或上传身份证反面</p>
+                                <span class="upload-hint">国徽面</span>
+                            </div>
+                            <img id="previewBack" class="preview-image" style="display: none;">
+                            <button type="button" class="btn-reupload" id="reuploadBack" style="display: none;">
+                                重新上传
+                            </button>
+                        </div>
+                        <span class="error-message" id="idCardBackError"></span>
+                    </div>
+
+                    <!-- OCR识别结果提示 -->
+                    <div class="form-group" id="ocrResultGroup" style="display: none;">
+                        <div class="info-display-box" style="background: #ecfdf5; border: 1px solid #10b981; padding: 12px; border-radius: 8px;">
+                            <div style="color: #059669; font-size: 14px; margin-bottom: 8px;">
+                                ✓ OCR识别成功，已自动填充以下信息
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">姓名：</span>
+                                <span class="info-value" id="ocrName"></span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">身份证号：</span>
+                                <span class="info-value" id="ocrIdCard"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 姓名 -->
+                    <div class="form-group">
+                        <label for="realName" class="form-label">真实姓名 <span style="color: #ef4444;">*</span></label>
+                        <input 
+                            type="text" 
+                            id="realName" 
+                            name="realName" 
+                            class="form-input" 
+                            placeholder="请输入身份证上的真实姓名"
+                            required
+                        >
+                        <span class="error-message" id="realNameError"></span>
+                    </div>
+
+                    <!-- 身份证号 -->
+                    <div class="form-group">
+                        <label for="idCard" class="form-label">身份证号码 <span style="color: #ef4444;">*</span></label>
+                        <input 
+                            type="text" 
+                            id="idCard" 
+                            name="idCard" 
+                            class="form-input" 
+                            placeholder="请输入18位身份证号码"
+                            maxlength="18"
+                            required
+                        >
+                        <span class="error-message" id="idCardError"></span>
+                    </div>
+
+                    <!-- 手机号 -->
+                    <div class="form-group">
+                        <label for="mobile" class="form-label">手机号</label>
+                        <input 
+                            type="tel" 
+                            id="mobile" 
+                            name="mobile" 
+                            class="form-input" 
+                            placeholder="请输入手机号码"
+                            maxlength="11"
+                            required
+                            autofocus
+                        >
+                        <span class="error-message" id="mobileError"></span>
+                    </div>
+
+                    <!-- 手机验证码 -->
+                    <div class="form-group">
+                        <label for="mobileSmsCode" class="form-label">短信验证码</label>
+                        <div style="display: flex; gap: 10px;">
+                            <input 
+                                type="text" 
+                                id="mobileSmsCode" 
+                                name="mobileSmsCode" 
+                                class="form-input" 
+                                placeholder="请输入验证码"
+                                maxlength="6"
+                                required
+                                style="flex: 1;"
+                            >
+                            <button type="button" class="btn-send-code" id="btnSendMobileSms">
+                                获取验证码
+                            </button>
+                        </div>
+                        <span class="error-message" id="mobileSmsCodeError"></span>
+                    </div>
+
+                    <!-- 省市区选择 -->
+                    <div class="form-group">
+                        <label class="form-label">所在地区 <span style="color: #ef4444;">*</span></label>
+                        <div style="display: flex; gap: 10px;">
+                            <select id="province" name="province" class="form-input" style="flex: 1;" required>
+                                <option value="">请选择省份</option>
+                            </select>
+                            <select id="city" name="city" class="form-input" style="flex: 1;" required disabled>
+                                <option value="">请选择城市</option>
+                            </select>
+                            <select id="district" name="district" class="form-input" style="flex: 1;" required disabled>
+                                <option value="">请选择区县</option>
+                            </select>
+                        </div>
+                        <span class="error-message" id="regionError"></span>
+                        <div style="font-size: 12px; color: #6b7280; margin-top: 4px;">
+                            涵盖全国34个省级行政区、342个地级行政区、3000+区县
+                        </div>
+                    </div>
+
+                    <!-- 详细地址 -->
+                    <div class="form-group">
+                        <label for="address" class="form-label">详细地址</label>
+                        <input 
+                            type="text" 
+                            id="address" 
+                            name="address" 
+                            class="form-input" 
+                            placeholder="请输入详细地址（街道、门牌号等）"
+                            required
+                        >
+                        <span class="error-message" id="addressError"></span>
+                    </div>
+
+                    <!-- 邮箱 -->
+                    <div class="form-group">
+                        <label for="email" class="form-label">邮箱</label>
+                        <input 
+                            type="email" 
+                            id="email" 
+                            name="email" 
+                            class="form-input" 
+                            placeholder="请输入邮箱地址"
+                            required
+                        >
+                        <span class="error-message" id="emailError"></span>
+                    </div>
+
+                    <!-- 登录账号 -->
+                    <div class="form-group">
+                        <label for="loginAccount" class="form-label">
+                            登录账号 <span style="color: #ef4444;">*</span>
+                        </label>
+                        <input 
+                            type="text" 
+                            id="loginAccount" 
+                            name="loginAccount" 
+                            class="form-input" 
+                            placeholder="用户名由4-20位英文、数字或连字符组成"
+                            maxlength="20"
+                            required
+                        >
+                        <span class="error-message" id="loginAccountError"></span>
+                        <div style="font-size: 12px; color: #6b7280; margin-top: 4px;">
+                            此账号将用于后续登录系统，默认密码：a112233
+                        </div>
+                    </div>
+
+                    <!-- 导航按钮组 -->
+                    <div class="step-navigation">
+                        <button type="submit" class="btn-submit btn-single" id="btnStep1">
+                            下一步 →
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- 步骤2: 电子合同实名认证 -->
+            <div class="step-content" id="step2" style="display: none;">
+                <h2 class="section-title" id="step2Title">电子合同实名认证</h2>
+                <p class="section-desc" id="step2Desc">请完成电子合同实名认证流程</p>
+
+                <!-- 已填写信息确认 -->
+                <div class="form-group" id="step2InfoBox">
+                    <div class="info-display-box" style="background: #f3f4f6; padding: 16px; border-radius: 8px; margin-bottom: 20px;">
+                        <div style="font-size: 14px; color: #6b7280; margin-bottom: 12px;">
+                            将使用以下信息进行实名认证
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">姓名：</span>
+                            <span class="info-value" id="confirmRealName"></span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">身份证号：</span>
+                            <span class="info-value" id="confirmIdCard"></span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">手机号：</span>
+                            <span class="info-value" id="confirmMobile"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 电子合同认证 iframe 容器 -->
+                <div id="eContractContainer" style="display: none;">
+                    <div style="background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; margin-bottom: 20px;">
+                        <iframe
+                            id="eContractFrame"
+                            style="width: 100%; height: 600px; border: none; display: block;"
+                            sandbox="allow-scripts allow-forms allow-popups allow-top-navigation allow-same-origin"
+                        ></iframe>
+                    </div>
+
+                    <!-- 测试按钮 -->
+                    <!-- <div style="text-align: center; margin-top: 20px;">
+                        <button type="button" id="btnTestAuthSuccess" class="btn-next" style="background: #f59e0b;">
+                            🧪 测试：手动触发认证成功
+                        </button>
+                    </div> -->
+                </div>
+
+                <!-- 认证成功提示容器 -->
+                <div id="authSuccessContainer" style="display: none;">
+                    <div style="background: #d1fae5; border: 1px solid #10b981; border-radius: 8px; padding: 24px; text-align: center; margin-bottom: 20px;">
+                        <div style="font-size: 48px; margin-bottom: 16px;">✅</div>
+                        <h3 style="color: #065f46; font-size: 20px; margin-bottom: 12px; font-weight: 600;">实名认证已完成</h3>
+                        <p style="color: #047857; font-size: 14px; margin-bottom: 0;">请点击下方"下一步"按钮继续登录操作</p>
+                    </div>
+                    <div class="step-navigation">
+                        <button type="button" id="btnBackToStep1FromSuccess" class="btn-prev">
+                            ← 上一步
+                        </button>
+                        <button type="button" id="btnProceedToLogin" class="btn-next">
+                            下一步（登录）→
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 启动认证按钮 -->
+                <div id="startAuthContainer" style="margin-bottom: 20px;">
+                    <div class="step-navigation">
+                        <button type="button" id="btnBackToStep1" class="btn-prev">
+                            ← 上一步
+                        </button>
+                        <button type="button" id="btnStartAuth" class="btn-next">
+                            开始实名认证 →
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 旧的表单（备用） -->
+                <form id="step2Form" class="kyc-form" style="display: none;">
+                    <!-- 运营商验证码 -->
+                    <div class="form-group">
+                        <label for="authCode" class="form-label">运营商验证码</label>
+                        <div style="display: flex; gap: 10px;">
+                            <input 
+                                type="text" 
+                                id="authCode" 
+                                name="authCode" 
+                                class="form-input" 
+                                placeholder="请输入验证码"
+                                maxlength="6"
+                                required
+                                style="flex: 1;"
+                            >
+                            <button type="button" class="btn-send-code" id="btnSendAuthCode">
+                                获取验证码
+                            </button>
+                        </div>
+                        <span class="error-message" id="authCodeError"></span>
+                    </div>
+
+                    <!-- 导航按钮组 -->
+                    <div class="step-navigation">
+                        <button type="button" class="btn-prev" onclick="window.kycApp.switchToStep(1)">
+                            ← 上一步
+                        </button>
+                        <button type="submit" class="btn-submit" id="btnStep2">
+                            验证并继续 →
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- 步骤3: 银行卡认证 -->
+            <div class="step-content" id="step3" style="display: none;">
+                <h2 class="section-title">银行账户认证</h2>
+                <p class="section-desc">请填写您的银行账户信息进行认证</p>
+
+                <form id="step3Form" class="kyc-form">
+                    <!-- 资金账（只读） -->
+                    <div class="form-group">
+                        <label for="fundAccount" class="form-label">资金账</label>
+                        <input
+                            type="text"
+                            id="fundAccount"
+                            class="form-input"
+                            readonly
+                            style="background: #f9fafb; color: #6b7280;"
+                        >
+                    </div>
+
+                    <!-- 用户姓名（只读） -->
+                    <div class="form-group">
+                        <label for="step3UserName" class="form-label">用户姓名</label>
+                        <input
+                            type="text"
+                            id="step3UserName"
+                            class="form-input"
+                            readonly
+                            style="background: #f9fafb; color: #6b7280;"
+                        >
+                    </div>
+
+                    <!-- 银行渠道（只读） -->
+                    <div class="form-group">
+                        <label for="bankChannel" class="form-label">银行渠道</label>
+                        <input
+                            type="text"
+                            id="bankChannel"
+                            class="form-input"
+                            value="联交运"
+                            readonly
+                            style="background: #f9fafb; color: #6b7280;"
+                        >
+                    </div>
+
+                    <!-- 银行卡号（必填） -->
+                    <div class="form-group">
+                        <label for="bankCard" class="form-label">银行卡号 <span style="color: #ef4444;">*</span></label>
+                        <div style="display: flex; gap: 10px;">
+                            <input
+                                type="text"
+                                id="bankCard"
+                                name="bankCard"
+                                class="form-input"
+                                placeholder="请输入银行卡号"
+                                maxlength="23"
+                                required
+                                style="flex: 1;"
+                            >
+                            <button type="button" class="btn-secondary" id="btnToggleBankSelect" style="display: none;">
+                                手动选择
+                            </button>
+                        </div>
+                        <div class="form-hint" id="bankRecognitionHint" style="margin-top: 8px; font-size: 12px; color: #909399;">
+                            <span id="bankRecognitionSuccess" style="display: none; color: #67C23A;">
+                                ✓ 已识别: <span id="recognizedBankName"></span>
+                            </span>
+                            <span id="bankRecognitionFail" style="display: none; color: #E6A23C;">
+                                ⚠ 未识别银行，请点击"手动选择"
+                            </span>
+                        </div>
+                        <span class="error-message" id="bankCardError"></span>
+                    </div>
+
+                    <!-- 银行名称（条件显示，搜索选择） -->
+                    <div class="form-group" id="bankSelectGroup" style="display: none;">
+                        <label for="bankSelect" class="form-label">所属银行 <span style="color: #ef4444;">*</span></label>
+                        <input
+                            type="text"
+                            id="bankSearchInput"
+                            class="form-input"
+                            placeholder="输入银行名称搜索..."
+                            autocomplete="off"
+                        >
+                        <div id="bankListDropdown" style="display: none; position: absolute; z-index: 1000; background: white; border: 1px solid #e5e7eb; border-radius: 8px; max-height: 300px; overflow-y: auto; width: calc(100% - 40px); margin-top: 5px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);">
+                        </div>
+                        <input type="hidden" id="bankSelect" name="bankSelect" value="">
+                        <div class="form-hint" style="margin-top: 8px; font-size: 12px; color: #909399;">
+                            输入银行名称快速搜索
+                        </div>
+                        <span class="error-message" id="bankSelectError"></span>
+                    </div>
+
+                    <!-- 账户类型（只读，默认储蓄卡） -->
+                    <div class="form-group">
+                        <label for="accountType" class="form-label">账户类型</label>
+                        <select
+                            id="accountType"
+                            class="form-input"
+                            disabled
+                            style="background: #f9fafb; color: #6b7280; cursor: not-allowed;"
+                        >
+                            <option value="储蓄卡" selected>储蓄卡</option>
+                        </select>
+                    </div>
+
+                    <!-- 证件类型（只读） -->
+                    <div class="form-group">
+                        <label for="step3CertType" class="form-label">证件类型</label>
+                        <select
+                            id="step3CertType"
+                            class="form-input"
+                            disabled
+                            style="background: #f9fafb; color: #6b7280; cursor: not-allowed;"
+                        >
+                            <option value="身份证" selected>身份证</option>
+                        </select>
+                    </div>
+
+                    <!-- 证件号（只读） -->
+                    <div class="form-group">
+                        <label for="step3IdCard" class="form-label">证件号</label>
+                        <input
+                            type="text"
+                            id="step3IdCard"
+                            class="form-input"
+                            readonly
+                            style="background: #f9fafb; color: #6b7280;"
+                        >
+                    </div>
+
+                    <!-- 手机号码（银行预留手机号，默认填入注册手机号） -->
+                    <div class="form-group">
+                        <label for="step3Mobile" class="form-label">手机号码 <span style="color: #ef4444;">*</span></label>
+                        <input
+                            type="tel"
+                            id="step3Mobile"
+                            name="step3Mobile"
+                            class="form-input"
+                            placeholder="请输入银行预留手机号"
+                            maxlength="11"
+                            required
+                        >
+                        <span class="error-message" id="step3MobileError"></span>
+                    </div>
+
+                    <!-- 短信验证码（必填） -->
+                    <div class="form-group">
+                        <label for="bankSmsCode" class="form-label">短信验证码 <span style="color: #ef4444;">*</span></label>
+                        <div style="display: flex; gap: 10px;">
+                            <input
+                                type="text"
+                                id="bankSmsCode"
+                                name="bankSmsCode"
+                                class="form-input"
+                                placeholder="请输入短信验证码"
+                                maxlength="6"
+                                required
+                                style="flex: 1;"
+                            >
+                            <button type="button" class="btn-send-code" id="btnSendBankSmsCode">
+                                发送验证码
+                            </button>
+                        </div>
+                        <span class="error-message" id="bankSmsCodeError"></span>
+                    </div>
+
+                    <!-- 导航按钮组 -->
+                    <div class="step-navigation">
+                        <button type="button" class="btn-prev" onclick="window.kycApp.switchToStep(2)">
+                            上一步
+                        </button>
+                        <button type="submit" class="btn-submit" id="btnStep3">
+                            认证
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- 步骤4: 完成注册 -->
+            <div class="step-content" id="step4" style="display: none;">
+                <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; border-radius: 8px; margin-bottom: 25px;">
+                    <p style="margin: 0; font-size: 14px; color: #92400e; line-height: 1.8;">
+                        <strong>入金注意事项：</strong>入金方式为线下转账入金，可以通过绑定卡向以下账户转账：
+                    </p>
+                </div>
+
+                <!-- 您的绑定账户 -->
+                <div class="payment-info-card" style="margin-bottom: 25px; text-align: left;">
+                    <div class="info-title">
+                        您的绑定账户为：
+                    </div>
+
+                    <div class="info-row">
+                        <div class="info-label">开户行</div>
+                        <div class="info-value" style="justify-content: flex-start; margin-left: auto;">
+                            <span id="userBankName"></span>
+                        </div>
+                    </div>
+
+                    <div class="info-row">
+                        <div class="info-label">银行账号</div>
+                        <div class="info-value" style="justify-content: flex-start; margin-left: auto;">
+                            <span id="userBankAccount"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 您的入金账户 -->
+                <div class="payment-info-card" style="text-align: left;">
+                    <div class="info-title">
+                        您的入金账户为：
+                    </div>
+
+                    <div class="info-row">
+                        <div class="info-label">收款户名</div>
+                        <div class="info-value" style="justify-content: flex-start; margin-left: auto;">
+                            <span id="companyAccountName">江西省联交运登记结算中心有限公司（贵茶数字化中心专户）</span>
+                            <button class="copy-btn" type="button" onclick="window.kycApp.copyText('companyAccountName', this)" style="padding: 4px 12px; background: #3b82f6; color: white; border: none; border-radius: 4px; font-size: 12px; cursor: pointer; flex-shrink: 0; margin-left: 10px;">复制</button>
+                        </div>
+                    </div>
+
+                    <div class="info-row">
+                        <div class="info-label">收款账号</div>
+                        <div class="info-value" style="justify-content: flex-start; margin-left: auto;">
+                            <span id="companyAccountNumber">787019800000047363000001</span>
+                            <button class="copy-btn" type="button" onclick="window.kycApp.copyText('companyAccountNumber', this)" style="padding: 4px 12px; background: #3b82f6; color: white; border: none; border-radius: 4px; font-size: 12px; cursor: pointer; flex-shrink: 0; margin-left: 10px;">复制</button>
+                        </div>
+                    </div>
+
+                    <div class="info-row">
+                        <div class="info-label">收款银行</div>
+                        <div class="info-value" style="justify-content: flex-start; margin-left: auto;">
+                            <span id="companyBankName">九江银行南昌阳明支行</span>
+                            <button class="copy-btn" type="button" onclick="window.kycApp.copyText('companyBankName', this)" style="padding: 4px 12px; background: #3b82f6; color: white; border: none; border-radius: 4px; font-size: 12px; cursor: pointer; flex-shrink: 0; margin-left: 10px;">复制</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 导航按钮组 -->
+                <div class="step-navigation" style="margin-top: 30px; display: flex; gap: 15px;">
+                    <button type="button" class="btn-previous" onclick="window.kycApp.prevStep()" style="flex: 1; padding: 15px; background: #f3f4f6; color: #374151; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">
+                        上一步
+                    </button>
+                    <button type="button" class="btn-next" onclick="window.kycApp.completeRegistration()" style="flex: 1; padding: 15px; background: #10b981; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">
+                        完成注册
+                    </button>
+                </div>
+            </div>
+
+            <!-- 加载提示 -->
+            <div class="loading-overlay" id="loadingOverlay" style="display: none;">
+                <div class="loading-spinner"></div>
+                <p class="loading-text">处理中...</p>
+            </div>
+        </main>
+    </div>
+
+    <!-- 提示弹窗 -->
+    <div class="modal" id="messageModal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-icon" id="modalIcon">✓</div>
+            <p class="modal-message" id="modalMessage"></p>
+            <button class="btn-modal-close" id="btnModalClose">确定</button>
+        </div>
+    </div>
+
+    <script src="/js/bankCardValidator.js"></script>
+    <script src="/js/bankCard.js"></script>
+    <script src="/js/kyc-app.js"></script>
+</body>
+</html>

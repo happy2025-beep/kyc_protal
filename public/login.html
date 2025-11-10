@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用户登录 - 快捷支付</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- 头部 -->
+        <header class="header">
+            <div class="header-icon">🔐</div>
+            <h1 class="header-title">用户登录</h1>
+            <p class="header-subtitle">安全、便捷的支付体验</p>
+        </header>
+
+        <!-- 主要内容 -->
+        <main class="main-content">
+            <h2 class="section-title">账户登录</h2>
+
+            <form id="loginForm" class="kyc-form">
+                <!-- 手机号码 -->
+                <div class="form-group">
+                    <label for="phone" class="form-label">手机号码</label>
+                    <input 
+                        type="tel" 
+                        id="phone" 
+                        name="phone" 
+                        class="form-input" 
+                        placeholder="请输入手机号码"
+                        value="13116005610"
+                        maxlength="11"
+                        required
+                    >
+                    <span class="error-message" id="phoneError"></span>
+                </div>
+
+                <!-- 密码 -->
+                <div class="form-group">
+                    <label for="password" class="form-label">登录密码</label>
+                    <input 
+                        type="password" 
+                        id="password" 
+                        name="password" 
+                        class="form-input" 
+                        placeholder="请输入登录密码"
+                        value="a112233"
+                        required
+                    >
+                    <span class="error-message" id="passwordError"></span>
+                </div>
+
+                <!-- 登录类型（隐藏） -->
+                <input type="hidden" id="logintype" name="logintype" value="1">
+
+                <!-- 提交按钮 -->
+                <button type="submit" class="btn-submit" id="btnSubmit">
+                    登录
+                </button>
+
+                <!-- 注册链接 -->
+                <div style="text-align: center; margin-top: 20px;">
+                    <a href="/" style="color: #4facfe; text-decoration: none; font-size: 14px;">
+                        还没有账号？立即注册
+                    </a>
+                </div>
+            </form>
+
+            <!-- 加载提示 -->
+            <div class="loading-overlay" id="loadingOverlay" style="display: none;">
+                <div class="loading-spinner"></div>
+                <p>正在登录...</p>
+            </div>
+        </main>
+    </div>
+
+    <!-- 提示弹窗 -->
+    <div class="modal" id="messageModal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-icon" id="modalIcon">✓</div>
+            <p class="modal-message" id="modalMessage"></p>
+            <button class="btn-modal-close" id="btnModalClose">确定</button>
+        </div>
+    </div>
+
+    <script src="/js/login.js"></script>
+</body>
+</html>
