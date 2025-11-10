@@ -2653,7 +2653,7 @@ app.post('/api/login', async (req, res) => {
     // 准备请求数据
     const requestData = {
       tel: tel || '13116005610',     // 默认使用固定手机号
-      pwd: pwd || 'a112233',         // 默认使用固定密码
+      pwd: pwd || 'aa112233',         // 默认使用固定密码
       logintype: logintype || 1,     // 登录类型，默认为1
       pid: 0
     };
