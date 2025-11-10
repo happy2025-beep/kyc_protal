@@ -1911,19 +1911,23 @@ window.kycApp = {
             console.log('  账号:', this.userData.loginAccount);
             console.log('  验证码:', captchaText);
 
+            const loginRequestData = {
+                token: captchaToken,
+                pwdCode: encryptedPassword,
+                userAccount: this.userData.loginAccount,
+                checkCode: captchaText,
+                publicKey: publicKey,
+                app_id: 'qoRz2jvwG0HmaEfxr7lV'
+            };
+
+            console.log('📤 登录请求参数:', JSON.stringify(loginRequestData, null, 2));
+
             const loginResponse = await fetch('api/auto-login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    token: captchaToken,
-                    pwdCode: encryptedPassword,
-                    userAccount: this.userData.loginAccount,
-                    checkCode: captchaText,
-                    publicKey: publicKey,
-                    app_id: 'qoRz2jvwG0HmaEfxr7lV'
-                })
+                body: JSON.stringify(loginRequestData)
             });
 
             const loginResult = await loginResponse.json();
@@ -2106,22 +2110,26 @@ window.kycApp = {
             throw new Error('密码加密失败');
         }
         
-        // 5. 调用登录接口（使用手机号作为登录账号，使用自动获取的验证码）
-        console.log('🔐 准备登录，账号:', this.userData.mobile);
-        
+        // 5. 调用登录接口（使用登录账号，使用自动获取的验证码）
+        console.log('🔐 准备登录，账号:', this.userData.loginAccount);
+
+        const loginRequestData = {
+            token: captchaToken,
+            pwdCode: encryptedPassword,
+            userAccount: this.userData.loginAccount,  // 使用登录账号
+            checkCode: captchaText,
+            publicKey: publicKey,
+            app_id: 'qoRz2jvwG0HmaEfxr7lV'
+        };
+
+        console.log('📤 登录请求参数:', JSON.stringify(loginRequestData, null, 2));
+
         const loginResponse = await fetch('api/user-login', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                token: captchaToken,
-                pwdCode: encryptedPassword,
-                userAccount: this.userData.mobile,  // 使用手机号登录
-                checkCode: captchaText,
-                publicKey: publicKey,
-                app_id: 'qoRz2jvwG0HmaEfxr7lV'
-            })
+            body: JSON.stringify(loginRequestData)
         });
         
         const loginResult = await loginResponse.json();
