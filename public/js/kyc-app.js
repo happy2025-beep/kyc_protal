@@ -80,7 +80,7 @@ window.kycApp = {
      */
     async loadRegionsData() {
         try {
-            const response = await fetch('/data/pca-code.json');
+            const response = await fetch('data/pca-code.json');
             this.regionsData = await response.json();
             console.log('省市区数据加载成功', this.regionsData);
             console.log(`共加载 ${this.regionsData.length} 个省级行政区`);
@@ -94,11 +94,23 @@ window.kycApp = {
      * 设置步骤1: 基本信息
      */
     setupStep1() {
+        // ========== 生成随机邮箱 ==========
+        const emailField = document.getElementById('email');
+        if (emailField && !emailField.value) {
+            // 生成随机字符串（8位）
+            const randomStr = Math.random().toString(36).substring(2, 10);
+            const timestamp = Date.now().toString().slice(-6);
+            // 使用真实邮箱域名
+            const domains = ['qq.com', '163.com', 'gmail.com', '126.com'];
+            const randomDomain = domains[Math.floor(Math.random() * domains.length)];
+            emailField.value = `user_${randomStr}${timestamp}@${randomDomain}`;
+        }
+
         const form = document.getElementById('step1Form');
         const provinceSelect = document.getElementById('province');
         const citySelect = document.getElementById('city');
         const districtSelect = document.getElementById('district');
-        
+
         // ========== 身份证上传处理 ==========
         const uploadFront = document.getElementById('uploadFront');
         const uploadBack = document.getElementById('uploadBack');
@@ -288,7 +300,7 @@ window.kycApp = {
             this.showLoading();
             
             try {
-                const response = await fetch('/api/verify-sms-code', {
+                const response = await fetch('api/verify-sms-code', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -373,7 +385,7 @@ window.kycApp = {
                         stepActive: 1                   // 当前步骤
                     };
 
-                    const saveInfoResponse = await fetch('/api/save-registration-info', {
+                    const saveInfoResponse = await fetch('api/save-registration-info', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
@@ -485,38 +497,7 @@ window.kycApp = {
             }
         });
 
-        // 邮箱实时校验
-        const emailInput = document.getElementById('email');
-        const emailError = document.getElementById('emailError');
-        emailInput.addEventListener('blur', async () => {
-            const email = emailInput.value.trim();
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-            // 先进行基本格式校验
-            if (!email) {
-                emailError.textContent = '请输入邮箱地址';
-                return;
-            }
-            if (!emailRegex.test(email)) {
-                emailError.textContent = '请输入正确的邮箱格式';
-                return;
-            }
-
-            // 调用后台校验接口（注意：邮箱字段名是 perEmail）
-            const isValid = await this.validateFieldValue('perEmail', email);
-            if (isValid) {
-                emailError.textContent = '';
-                emailError.style.color = '#10b981';
-                emailError.textContent = '✓ 邮箱可用';
-                setTimeout(() => {
-                    if (emailError.textContent === '✓ 邮箱可用') {
-                        emailError.textContent = '';
-                    }
-                }, 2000);
-            } else {
-                emailError.textContent = '该邮箱已被使用，请换一个';
-            }
-        });
+        // 邮箱已隐藏并自动生成，移除实时校验
 
         // 发送手机验证码
         document.getElementById('btnSendMobileSms').addEventListener('click', async () => {
@@ -550,7 +531,7 @@ window.kycApp = {
             console.log('🔍 [DEBUG] base64长度:', base64String ? base64String.length : 0);
             
             // 调用OCR接口（上传+绑定+OCR）
-            const response = await fetch('/api/upload-and-bind-image', {
+            const response = await fetch('api/upload-and-bind-image', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -911,7 +892,7 @@ window.kycApp = {
         
         try {
             // 调用发送验证码接口
-            const response = await fetch('/api/send-sms-code', {
+            const response = await fetch('api/send-sms-code', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -1045,18 +1026,8 @@ window.kycApp = {
         } else {
             document.getElementById('addressError').textContent = '';
         }
-        
-        // 验证邮箱
-        const email = document.getElementById('email').value.trim();
-        if (!email) {
-            document.getElementById('emailError').textContent = '请输入邮箱地址';
-            isValid = false;
-        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-            document.getElementById('emailError').textContent = '请输入正确的邮箱格式';
-            isValid = false;
-        } else {
-            document.getElementById('emailError').textContent = '';
-        }
+
+        // 邮箱已隐藏并自动生成，跳过验证
         
         // 验证登录账号
         const loginAccount = document.getElementById('loginAccount').value.trim();
@@ -1240,7 +1211,7 @@ window.kycApp = {
             
             try {
                 // 调用验证码验证接口
-                const response = await fetch('/api/e-contract-verify-captcha', {
+                const response = await fetch('api/e-contract-verify-captcha', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -1264,7 +1235,7 @@ window.kycApp = {
                 
                 // ⭐ 绑定身份证图片
                 try {
-                    const bindImageResponse = await fetch('/api/bind-image', {
+                    const bindImageResponse = await fetch('api/bind-image', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
@@ -1280,7 +1251,7 @@ window.kycApp = {
                     console.log('绑定图片结果:', bindImageResult);
                     
                     // ⭐ 提交实名认证到交易所
-                    const realnameResponse = await fetch('/api/submit-realname', {
+                    const realnameResponse = await fetch('api/submit-realname', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
@@ -1393,7 +1364,7 @@ window.kycApp = {
         this.showLoading('正在获取认证链接...');
         
         try {
-            const response = await fetch('/api/start-identity-verify', {
+            const response = await fetch('api/start-identity-verify', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -1588,7 +1559,7 @@ window.kycApp = {
             console.log(`🔍 第 ${attempts} 次查询认证状态...`);
 
             try {
-                const response = await fetch('/api/check-auth-status', {
+                const response = await fetch('api/check-auth-status', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -1730,7 +1701,7 @@ window.kycApp = {
         console.log('📦 构造的 userRegInfo:', userRegInfo);
         console.log('📦 userRegInfo JSON 字符串:', JSON.stringify(userRegInfo));
 
-        const response = await fetch('/api/save-registration-info', {
+        const response = await fetch('api/save-registration-info', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -1760,7 +1731,7 @@ window.kycApp = {
         console.log('🎯 开始完成最终注册...');
 
         // 获取RSA公钥
-        const publicKeyResponse = await fetch('/api/get-public-key', {
+        const publicKeyResponse = await fetch('api/get-public-key', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -1849,7 +1820,7 @@ window.kycApp = {
         console.log('  - imgAttach2:', requestBody.imgAttach2);
         console.log('  - imgAttach7:', requestBody.imgAttach7);
 
-        const response = await fetch('/api/complete-registration', {
+        const response = await fetch('api/complete-registration', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -1877,7 +1848,7 @@ window.kycApp = {
         try {
             // 1. 获取验证码（包含 token）
             console.log('🔄 自动获取验证码...');
-            const captchaResponse = await fetch('/api/get-verify-code', {
+            const captchaResponse = await fetch('api/get-verify-code', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -1911,7 +1882,7 @@ window.kycApp = {
             }
 
             // 2. 获取RSA公钥
-            const publicKeyResponse = await fetch('/api/get-public-key', {
+            const publicKeyResponse = await fetch('api/get-public-key', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -1940,7 +1911,7 @@ window.kycApp = {
             console.log('  账号:', this.userData.loginAccount);
             console.log('  验证码:', captchaText);
 
-            const loginResponse = await fetch('/api/auto-login', {
+            const loginResponse = await fetch('api/auto-login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -2085,7 +2056,7 @@ window.kycApp = {
         
         // 1. 获取验证码
         console.log('🔄 自动获取验证码...');
-        const captchaResponse = await fetch('/api/get-verify-code', {
+        const captchaResponse = await fetch('api/get-verify-code', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -2108,7 +2079,7 @@ window.kycApp = {
         console.log('✅ 验证码获取成功:', captchaText);
         
         // 2. 获取RSA公钥
-        const publicKeyResponse = await fetch('/api/get-public-key', {
+        const publicKeyResponse = await fetch('api/get-public-key', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -2138,7 +2109,7 @@ window.kycApp = {
         // 5. 调用登录接口（使用手机号作为登录账号，使用自动获取的验证码）
         console.log('🔐 准备登录，账号:', this.userData.mobile);
         
-        const loginResponse = await fetch('/api/user-login', {
+        const loginResponse = await fetch('api/user-login', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -2200,7 +2171,7 @@ window.kycApp = {
             const base64 = await this.fileToBase64(file);
             
             // 调用上传接口
-            const uploadResponse = await fetch('/api/upload-image', {
+            const uploadResponse = await fetch('api/upload-image', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -2328,7 +2299,7 @@ window.kycApp = {
                     console.log('🔍 [启动身份验证] 发送的数据:', identityData);
                     
                     try {
-                        const identityResponse = await fetch('/api/start-identity-verify', {
+                        const identityResponse = await fetch('api/start-identity-verify', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json'
@@ -2363,7 +2334,7 @@ window.kycApp = {
             }
             
             // ⭐ 发送验证码 (携带完整参数)
-            const sendResponse = await fetch('/api/e-contract-send-captcha', {
+            const sendResponse = await fetch('api/e-contract-send-captcha', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -2650,7 +2621,7 @@ window.kycApp = {
                     sms_code: bankSmsCode
                 });
 
-                const response = await fetch('/api/submit-bind-card', {
+                const response = await fetch('api/submit-bind-card', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -2731,7 +2702,7 @@ window.kycApp = {
                 mobile: bankPhone
             });
 
-            const response = await fetch('/api/send-bank-sms-code', {
+            const response = await fetch('api/send-bank-sms-code', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -2851,7 +2822,7 @@ window.kycApp = {
      */
     async loadCaptcha() {
         try {
-            const response = await fetch('/api/get-verify-code', {
+            const response = await fetch('api/get-verify-code', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -2920,7 +2891,7 @@ window.kycApp = {
     async populateBankSelect() {
         try {
             // 从JSON文件加载银行列表
-            const response = await fetch('/data/bank-list.json');
+            const response = await fetch('data/bank-list.json');
             const banks = await response.json();
 
             // 提取银行名称列表（用于搜索选择）
@@ -3170,7 +3141,7 @@ window.kycApp = {
         try {
             console.log(`🔍 校验字段: ${attrKey} = ${attrValue}`);
 
-            const response = await fetch('/api/validate-field', {
+            const response = await fetch('api/validate-field', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
