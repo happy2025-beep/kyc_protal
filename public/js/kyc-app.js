@@ -476,7 +476,7 @@ window.kycApp = {
         // 邮箱已隐藏并自动生成，移除实时校验
 
         // 自动生成登录账号（基于手机号）
-        const mobileInput = document.getElementById('mobile');
+        // mobileInput 已在上面声明，直接使用
         if (mobileInput) {
             mobileInput.addEventListener('blur', () => {
                 this.generateLoginAccountFromMobile();
