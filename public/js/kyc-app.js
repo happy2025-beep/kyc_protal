@@ -1550,44 +1550,15 @@ window.kycApp = {
                 stack: error.stack
             });
 
-            // 判断是否为用户已注册的错误
-            if (error.message && error.message.includes('保存失败')) {
+            // 判断是否为"账号已存在"的错误
+            if (error.isDuplicateAccount || (error.message && error.message.includes('登录账号不能重复'))) {
+                console.log('⚠️ 该账号已经存在，自动转向登录流程...');
+                await this.handleDuplicateAccountError('该账号已存在');
+            }
+            // 判断是否为"保存失败"的错误
+            else if (error.message && error.message.includes('保存失败')) {
                 console.log('⚠️ 用户可能已经注册过，尝试直接登录...');
-
-                try {
-                    // 尝试直接进行自动登录
-                    this.showLoading('您可能已注册，正在尝试登录...');
-                    await this.autoLogin();
-
-                    // 登录成功
-                    this.hideLoading();
-                    this.userData.realnameCompleted = true;
-                    this.showMessage('success', '✅ 您已经注册过了！已自动登录成功，请点击"下一步"继续。');
-                    this.showNextStepButton();
-
-                } catch (loginError) {
-                    this.hideLoading();
-                    console.error('❌ 自动登录也失败:', loginError);
-                    this.showMessage('error', '您可能已经注册过了，但自动登录失败。请返回使用已有账号登录。');
-
-                    // 提供返回登录的选项
-                    const authSuccessContainer = document.getElementById('authSuccessContainer');
-                    if (authSuccessContainer) {
-                        authSuccessContainer.innerHTML = `
-                            <div style="text-align: center; padding: 20px;">
-                                <p style="color: #ef4444; margin-bottom: 20px;">
-                                    该手机号可能已经注册过，请返回使用已有账号登录。
-                                </p>
-                                <button onclick="window.location.reload()"
-                                    style="padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 5px; cursor: pointer;">
-                                    返回首页
-                                </button>
-                            </div>
-                        `;
-                        authSuccessContainer.style.display = 'block';
-                    }
-                }
-
+                await this.handleDuplicateAccountError('您已经注册过了');
             } else {
                 // 其他错误正常显示
                 this.showMessage('error', error.message || '认证处理失败，请重试');
@@ -1896,10 +1867,55 @@ window.kycApp = {
         console.log('📦 完成注册结果:', result);
 
         if (!result.success) {
+            // 检查是否是"账号已存在"的错误
+            if (result.message && result.message.includes('登录账号不能重复')) {
+                console.log('⚠️ 账号已存在，标记为需要登录');
+                const error = new Error(result.message);
+                error.isDuplicateAccount = true;
+                throw error;
+            }
             throw new Error(result.message || '完成注册失败');
         }
 
         console.log('✅ 注册完成！');
+    },
+
+    /**
+     * 处理账号已存在或保存失败的错误
+     * 尝试使用现有账号自动登录
+     */
+    async handleDuplicateAccountError(errorMessage = '该账号已存在') {
+        console.log('⚠️ 处理账号重复或保存失败，尝试自动登录...');
+        try {
+            // 尝试直接进行自动登录
+            this.showLoading(`${errorMessage}，正在进行登录...`);
+            await this.autoLogin();
+            // 登录成功
+            this.hideLoading();
+            this.userData.realnameCompleted = true;
+            this.showMessage('success', `✅ ${errorMessage}！已自动登录成功，请点击"下一步"继续。`);
+            this.showNextStepButton();
+        } catch (loginError) {
+            this.hideLoading();
+            console.error('❌ 自动登录失败:', loginError);
+            this.showMessage('error', `${errorMessage}，但自动登录失败。请返回使用已有账号登录。`);
+            // 提供返回登录的选项
+            const authSuccessContainer = document.getElementById('authSuccessContainer');
+            if (authSuccessContainer) {
+                authSuccessContainer.innerHTML = `
+                    <div style="text-align: center; padding: 20px;">
+                        <p style="color: #ef4444; margin-bottom: 20px;">
+                            ${errorMessage}，请返回使用已有账号登录。
+                        </p>
+                        <button onclick="window.location.reload()"
+                            style="padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                            返回首页
+                        </button>
+                    </div>
+                `;
+                authSuccessContainer.style.display = 'block';
+            }
+        }
     },
 
     /**
