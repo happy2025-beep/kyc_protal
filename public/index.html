@@ -229,19 +229,17 @@
 
                     <!-- 登录账号 -->
                     <div class="form-group">
-                        <label for="loginAccount" class="form-label">
+                        <label class="form-label">
                             登录账号 <span style="color: #ef4444;">*</span>
                         </label>
-                        <input 
-                            type="text" 
-                            id="loginAccount" 
-                            name="loginAccount" 
-                            class="form-input" 
-                            placeholder="用户名由4-20位英文、数字或连字符组成"
-                            maxlength="20"
-                            required
+                        <div
+                            id="loginAccount"
+                            class="form-input"
+                            style="background-color: #f3f4f6; cursor: default; display: flex; align-items: center; gap: 8px; color: #059669; font-weight: 500;"
                         >
-                        <span class="error-message" id="loginAccountError"></span>
+                            <span id="loginAccountValue">-</span>
+                            <span style="font-size: 12px; color: #9ca3af; font-weight: normal;">(自动生成)</span>
+                        </div>
                         <div style="font-size: 12px; color: #6b7280; margin-top: 4px;">
                             此账号将用于后续登录系统，默认密码：aa112233
                         </div>

@@ -471,45 +471,69 @@ window.kycApp = {
             }
         });
 
-        // 登录账号实时校验
-        const loginAccountInput = document.getElementById('loginAccount');
-        const loginAccountError = document.getElementById('loginAccountError');
-        loginAccountInput.addEventListener('blur', async () => {
-            const account = loginAccountInput.value.trim();
-            const accountRegex = /^[a-zA-Z0-9-]{4,20}$/;
-
-            // 先进行基本格式校验
-            if (!account) {
-                loginAccountError.textContent = '请输入登录账号';
-                return;
-            }
-            if (!accountRegex.test(account)) {
-                loginAccountError.textContent = '用户名由4-20位英文、数字或连字符组成';
-                return;
-            }
-
-            // 调用后台校验接口
-            const isValid = await this.validateFieldValue('account', account);
-            if (isValid) {
-                loginAccountError.textContent = '';
-                loginAccountError.style.color = '#10b981';
-                loginAccountError.textContent = '✓ 账号可用';
-                setTimeout(() => {
-                    if (loginAccountError.textContent === '✓ 账号可用') {
-                        loginAccountError.textContent = '';
-                    }
-                }, 2000);
-            } else {
-                loginAccountError.textContent = '该账号已被使用，请换一个';
-            }
-        });
+        // 登录账号已改为自动生成，无需用户输入或校验
 
         // 邮箱已隐藏并自动生成，移除实时校验
+
+        // 自动生成登录账号（基于手机号）
+        const mobileInput = document.getElementById('mobile');
+        if (mobileInput) {
+            mobileInput.addEventListener('blur', () => {
+                this.generateLoginAccountFromMobile();
+            });
+            mobileInput.addEventListener('change', () => {
+                this.generateLoginAccountFromMobile();
+            });
+        }
 
         // 发送手机验证码
         document.getElementById('btnSendMobileSms').addEventListener('click', async () => {
             await this.sendMobileSmsCode();
         });
+    },
+
+    /**
+     * 根据手机号自动生成登录账号
+     * 格式：aa + 手机号 (例如：aa15100611337)
+     */
+    generateLoginAccountFromMobile() {
+        const mobile = document.getElementById('mobile')?.value.trim();
+        const loginAccountValue = document.getElementById('loginAccountValue');
+
+        if (!mobile) {
+            if (loginAccountValue) {
+                loginAccountValue.textContent = '-';
+                loginAccountValue.style.color = '#9ca3af';
+            }
+            this.userData.loginAccount = '';
+            return;
+        }
+
+        // 校验手机号格式
+        const mobileRegex = /^1[3-9]\d{9}$/;
+        if (!mobileRegex.test(mobile)) {
+            if (loginAccountValue) {
+                loginAccountValue.textContent = '-';
+                loginAccountValue.style.color = '#ef4444';
+            }
+            this.userData.loginAccount = '';
+            return;
+        }
+
+        // 生成账号：aa + 手机号
+        const generatedAccount = `aa${mobile}`;
+
+        if (loginAccountValue) {
+            loginAccountValue.textContent = generatedAccount;
+            loginAccountValue.style.color = '#059669';
+            loginAccountValue.style.fontWeight = '500';
+        }
+
+        // 保存到 userData
+        this.userData.loginAccount = generatedAccount;
+        this.userData.loginPassword = 'aa112233'; // 默认密码
+
+        console.log('✅ 自动生成登录账号:', generatedAccount);
     },
 
     /**
@@ -1036,17 +1060,10 @@ window.kycApp = {
 
         // 邮箱已隐藏并自动生成，跳过验证
         
-        // 验证登录账号
-        const loginAccount = document.getElementById('loginAccount').value.trim();
-        const accountRegex = /^[a-zA-Z0-9-]{4,20}$/;
-        if (!loginAccount) {
-            document.getElementById('loginAccountError').textContent = '请输入登录账号';
+        // 验证登录账号（自动生成，无需用户输入）
+        if (!this.userData.loginAccount) {
+            this.showMessage('error', '登录账号生成失败，请检查手机号是否正确');
             isValid = false;
-        } else if (!accountRegex.test(loginAccount)) {
-            document.getElementById('loginAccountError').textContent = '用户名由4-20位英文、数字或连字符组成';
-            isValid = false;
-        } else {
-            document.getElementById('loginAccountError').textContent = '';
         }
         
         console.log('🔍 [DEBUG] 步骤1验证结果:', isValid);
