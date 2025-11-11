@@ -1940,11 +1940,19 @@ window.kycApp = {
             // 登录成功
             this.hideLoading();
             this.userData.realnameCompleted = true;
+            // 🎯 重新标记已处理，防止重复调用
+            this.authCompleted = true;
             this.showMessage('success', `✅ ${errorMessage}！已自动登录成功，请点击"下一步"继续。`);
             this.showNextStepButton();
         } catch (loginError) {
             this.hideLoading();
             console.error('❌ 自动登录失败:', loginError);
+            console.error('❌ 登录错误详情:', {
+                name: loginError.name,
+                message: loginError.message
+            });
+            // 🎯 防止无限循环：标记已处理，不再自动重试
+            this.authCompleted = true;
             this.showMessage('error', `${errorMessage}，但自动登录失败。请返回使用已有账号登录。`);
             // 提供返回登录的选项
             const authSuccessContainer = document.getElementById('authSuccessContainer');
