@@ -349,8 +349,15 @@ window.kycApp = {
                 this.userData.district = document.getElementById('district').selectedOptions[0].text;
                 this.userData.address = document.getElementById('address').value.trim();
                 this.userData.email = document.getElementById('email').value.trim();
-                this.userData.loginAccount = document.getElementById('loginAccount').value.trim();
+                // 🎯 修复：loginAccount 已在 generateLoginAccountFromMobile() 中自动生成并保存到 userData
+                // 不需要再从 HTML 中获取（因为 loginAccount div 没有 value 属性）
+                // this.userData.loginAccount 已经包含自动生成的账号
+                if (!this.userData.loginAccount) {
+                    // 万一没生成，用手机号作为备用
+                    this.userData.loginAccount = `aa${mobile}`;
+                }
                 this.userData.loginPassword = 'aa112233'; // 默认密码（8位，包含字母和数字）
+                console.log('✅ [步骤1] 登录账号已确认:', this.userData.loginAccount);
                 
                 // ⭐ 调用保存基本信息+风险评估接口
                 try {
@@ -392,6 +399,10 @@ window.kycApp = {
                         stepActive: 1                   // 当前步骤
                     };
 
+                    console.log('📤 [保存注册信息] 准备发送请求...');
+                    console.log('   注册账号:', this.userData.mobile);
+                    console.log('   regInfo 大小:', JSON.stringify(regInfo).length, 'bytes');
+
                     const saveInfoResponse = await fetch('api/save-registration-info', {
                         method: 'POST',
                         headers: {
@@ -405,11 +416,24 @@ window.kycApp = {
                         })
                     });
 
+                    console.log('📥 [保存注册信息] 收到响应，状态码:', saveInfoResponse.status);
+
+                    // 检查HTTP状态
+                    if (!saveInfoResponse.ok) {
+                        const errorText = await saveInfoResponse.text();
+                        console.error('❌ [保存注册信息] HTTP错误:', saveInfoResponse.status, errorText);
+                        this.hideLoading();
+                        this.showMessage('error', `保存信息失败 (HTTP ${saveInfoResponse.status})，请稍后重试`);
+                        return;
+                    }
+
                     const saveInfoResult = await saveInfoResponse.json();
+                    console.log('📊 [保存注册信息] 响应数据:', saveInfoResult);
 
                     this.hideLoading();
 
                     if (!saveInfoResult.success) {
+                        console.error('❌ [保存注册信息] 后端返回失败:', saveInfoResult.message);
                         this.showMessage('error', saveInfoResult.message || '保存信息失败，请重试');
                         return;
                     }
@@ -428,14 +452,20 @@ window.kycApp = {
                     
                 } catch (registerError) {
                     this.hideLoading();
-                    console.error('注册或保存信息失败:', registerError);
-                    this.showMessage('error', '注册失败，请稍后重试');
+                    console.error('❌ [步骤1] 保存注册信息异常:', registerError);
+                    console.error('   错误名:', registerError.name);
+                    console.error('   错误消息:', registerError.message);
+                    console.error('   完整错误:', registerError);
+                    this.showMessage('error', '保存注册信息失败，请检查网络连接');
                     return;
                 }
             } catch (error) {
                 this.hideLoading();
-                console.error('验证码验证失败:', error);
-                this.showMessage('error', '网络错误，请稍后重试');
+                console.error('❌ [步骤1] 整个步骤1流程异常:', error);
+                console.error('   错误名:', error.name);
+                console.error('   错误消息:', error.message);
+                console.error('   完整错误:', error);
+                this.showMessage('error', '处理失败，请检查网络连接后重试');
             }
         });
         
