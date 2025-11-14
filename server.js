@@ -2512,6 +2512,206 @@ app.post('/api/submit-bind-card', async (req, res) => {
   }
 });
 
+// 银行卡绑定接口（最终绑定）
+// 接口地址: POST http://1.95.91.139:8088/api/uc_92300/306426
+// 用途: 使用绑卡验证码完成最终的银行卡绑定
+app.post('/api/bind-bank-card-final', async (req, res) => {
+  try {
+    const {
+      isFlat = false,
+      mode = "BE",
+      bind_status = "1",
+      bank_account,
+      bank_account_type = "1",
+      id_kind = "P01",
+      id_no,
+      bank_no = "1001",
+      bank_pro_code = "ljyClearing",
+      channel_bank_no,
+      exchange_id = 0,
+      mobile,
+      client_name,
+      fund_account,
+      cust_type = "mchtType02",
+      session_id,
+      user_id,
+      bank_branch = "",
+      bank_id = "ljyClearing",
+      sms_code,
+      process_type = "2",
+      id,
+      bank_name,
+      sessionId,
+      token,
+      app_id = 'qoRz2jvwG0HmaEfxr7lV'
+    } = req.body;
+
+    console.log('\n========== 银行卡绑定 (306426) ==========');
+    console.log('银行卡号:', bank_account);
+    console.log('银行名称:', bank_name);
+    console.log('认证ID:', id);
+    console.log('资金账号:', fund_account);
+
+    // Validate required fields
+    if (!bank_account || !mobile || !client_name || !fund_account || !id_no || !sms_code || !id) {
+      return res.json({
+        success: false,
+        message: '请提供完整的绑卡信息'
+      });
+    }
+
+    const apiUrl = 'http://1.95.91.139:8088/api/uc_92300/306426';
+
+    const requestData = {
+      isFlat,
+      mode,
+      bind_status,
+      bank_account,
+      bank_account_type,
+      id_kind,
+      id_no,
+      bank_no,
+      bank_pro_code,
+      channel_bank_no,
+      exchange_id,
+      mobile,
+      client_name,
+      fund_account,
+      cust_type,
+      session_id,
+      user_id,
+      bank_branch,
+      bank_id,
+      sms_code,
+      process_type,
+      id,
+      bank_name,
+      sessionId,
+      token,
+      app_id
+    };
+
+    console.log('请求参数:', JSON.stringify(requestData, null, 2));
+
+    const response = await axios.post(apiUrl, requestData, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      timeout: 15000
+    });
+
+    console.log('[银行卡绑定] 响应:', response.data);
+    logApiResponse('银行卡绑定(306426)', response.data);
+
+    // Check enum_fund_code for success
+    if (response.data && response.data.data && response.data.data.length > 0) {
+      const result = response.data.data[0];
+
+      if (result.enum_fund_code === '0000') {
+        res.json({
+          success: true,
+          message: result.enum_fund_desc || '银行卡绑定成功',
+          data: result
+        });
+      } else {
+        res.json({
+          success: false,
+          message: result.enum_fund_message || result.enum_fund_desc || '银行卡绑定失败',
+          code: result.enum_fund_code
+        });
+      }
+    } else {
+      res.json({
+        success: false,
+        message: '银行卡绑定失败：返回数据格式错误'
+      });
+    }
+
+  } catch (error) {
+    console.error('银行卡绑定失败:', error.message);
+    if (error.response) {
+      console.error('响应状态:', error.response.status);
+      console.error('响应数据:', error.response.data);
+    }
+    res.status(500).json({
+      success: false,
+      message: '银行卡绑定失败',
+      error: error.message
+    });
+  }
+});
+
+// 查询银行卡信息接口
+// 接口地址: POST http://1.95.91.139:8088/api/uc_92300/306228
+// 用途: 在银行卡认证完成后调用，获取认证后的银行卡信息（包括id）
+app.post('/api/query-bank-card-info', async (req, res) => {
+  try {
+    const {
+      is_flat = false,
+      exchange_id = "0",
+      user_id,
+      root_user_id,
+      is_admin = true,
+      curr_ip = "192.168.186.17"
+    } = req.body;
+
+    console.log('\n========== 查询银行卡信息 (306228) ==========');
+    console.log('用户ID:', user_id);
+    console.log('根用户ID:', root_user_id);
+
+    if (!user_id || !root_user_id) {
+      return res.json({
+        success: false,
+        message: '请提供用户ID'
+      });
+    }
+
+    const apiUrl = 'http://1.95.91.139:8088/api/uc_92300/306228';
+
+    const requestData = {
+      is_flat,
+      exchange_id,
+      user_id,
+      root_user_id,
+      is_admin,
+      curr_ip
+    };
+
+    console.log('请求参数:', JSON.stringify(requestData, null, 2));
+
+    const response = await axios.post(apiUrl, requestData, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      timeout: 15000
+    });
+
+    console.log('[查询银行卡信息] 响应:', response.data);
+    logApiResponse('查询银行卡信息(306228)', response.data);
+
+    // 直接返回原始数据
+    res.json({
+      success: true,
+      message: '查询成功',
+      data: response.data.data || []
+    });
+
+  } catch (error) {
+    console.error('查询银行卡信息失败:', error.message);
+    if (error.response) {
+      console.error('响应状态:', error.response.status);
+      console.error('响应数据:', error.response.data);
+    }
+    res.status(500).json({
+      success: false,
+      message: '查询银行卡信息失败',
+      error: error.message
+    });
+  }
+});
+
 // 7. 图片上传接口（预留，待验证）
 // 用途：上传图片文件（将图片转换为Base64字符串后上传）
 // 接口地址：POST http://1.95.91.139:9200/307453
@@ -3248,6 +3448,43 @@ function getBankCode(bankName) {
   
   return bankCodes[bankName] || 'OTHER';
 }
+
+// 获取客户端IP地址
+app.get('/api/get-client-ip', (req, res) => {
+  // 获取客户端真实IP
+  // 优先从 X-Forwarded-For 获取（如果有代理）
+  const forwardedFor = req.headers['x-forwarded-for'];
+  const realIp = req.headers['x-real-ip'];
+  const remoteAddress = req.connection.remoteAddress || req.socket.remoteAddress;
+
+  let clientIp;
+
+  if (forwardedFor) {
+    // X-Forwarded-For 可能包含多个IP，取第一个
+    clientIp = forwardedFor.split(',')[0].trim();
+  } else if (realIp) {
+    clientIp = realIp;
+  } else {
+    clientIp = remoteAddress;
+  }
+
+  // 处理IPv6的本地地址
+  if (clientIp === '::1' || clientIp === '::ffff:127.0.0.1') {
+    clientIp = '127.0.0.1';
+  }
+
+  // 去除IPv6前缀
+  if (clientIp && clientIp.startsWith('::ffff:')) {
+    clientIp = clientIp.substring(7);
+  }
+
+  console.log('客户端IP:', clientIp);
+
+  res.json({
+    success: true,
+    ip: clientIp
+  });
+});
 
 // 健康检查端点
 app.get('/api/health', (req, res) => {
