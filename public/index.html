@@ -627,6 +627,77 @@
         </div>
     </div>
 
+    <!-- 开发者调试工具栏 -->
+    <div id="devToolbar" style="position: fixed; bottom: 20px; right: 20px; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 8px; color: white; font-size: 12px; z-index: 9999; display: none;">
+        <div style="margin-bottom: 10px; font-weight: bold; border-bottom: 1px solid #666; padding-bottom: 5px;">开发者工具</div>
+        <div style="margin-bottom: 10px;">
+            <button onclick="devTools.fillTestData()" style="padding: 5px 10px; margin: 2px; cursor: pointer; background: #3b82f6; color: white; border: none; border-radius: 4px;">填充测试数据</button>
+            <button onclick="devTools.clearData()" style="padding: 5px 10px; margin: 2px; cursor: pointer; background: #ef4444; color: white; border: none; border-radius: 4px;">清空数据</button>
+        </div>
+        <div style="margin-bottom: 10px;">
+            快速跳转：
+            <button onclick="devTools.jumpToStep(1)" style="padding: 5px 10px; margin: 2px; cursor: pointer; background: #10b981; color: white; border: none; border-radius: 4px;">步骤1</button>
+            <button onclick="devTools.jumpToStep(2)" style="padding: 5px 10px; margin: 2px; cursor: pointer; background: #10b981; color: white; border: none; border-radius: 4px;">步骤2</button>
+            <button onclick="devTools.jumpToStep(3)" style="padding: 5px 10px; margin: 2px; cursor: pointer; background: #10b981; color: white; border: none; border-radius: 4px;">步骤3</button>
+            <button onclick="devTools.jumpToStep(4)" style="padding: 5px 10px; margin: 2px; cursor: pointer; background: #10b981; color: white; border: none; border-radius: 4px;">步骤4</button>
+        </div>
+        <div>
+            <button onclick="devTools.toggle()" style="padding: 5px 10px; margin: 2px; cursor: pointer; background: #6b7280; color: white; border: none; border-radius: 4px;">隐藏工具栏</button>
+        </div>
+    </div>
+    <button id="devToolbarToggle" onclick="devTools.toggle()" style="position: fixed; bottom: 20px; right: 20px; padding: 10px 15px; background: #3b82f6; color: white; border: none; border-radius: 50%; cursor: pointer; z-index: 9999; font-size: 16px; display: none;">🛠️</button>
+
+    <script>
+    // 开发者工具
+    const devTools = {
+        toggle() {
+            const toolbar = document.getElementById('devToolbar');
+            const toggleBtn = document.getElementById('devToolbarToggle');
+            if (toolbar.style.display === 'none') {
+                toolbar.style.display = 'block';
+                toggleBtn.style.display = 'none';
+            } else {
+                toolbar.style.display = 'none';
+                toggleBtn.style.display = 'block';
+            }
+        },
+
+        fillTestData() {
+            // 填充测试数据
+            kycApp.userData = {
+                ...kycApp.userData,
+                realName: '张三',
+                idCard: '110101199001011234',
+                mobile: '13800138000',
+                session_id: 'test_session_' + Date.now(),
+                user_id: 'test_user_' + Math.random().toString(36).substr(2, 9),
+                captchaToken: 'test_token_' + Date.now(),
+                clientIp: '192.168.1.100',
+                fundAccount: '2511100167000'
+            };
+            kycApp.saveUserDataToStorage();
+            alert('✅ 测试数据已填充！\n\n用户ID: ' + kycApp.userData.user_id + '\nSession: ' + kycApp.userData.session_id);
+        },
+
+        clearData() {
+            if (confirm('确定要清空所有数据吗？')) {
+                sessionStorage.clear();
+                location.reload();
+            }
+        },
+
+        jumpToStep(step) {
+            kycApp.switchToStep(step);
+            console.log('已跳转到步骤' + step);
+        }
+    };
+
+    // 检测是否是开发环境（localhost 或 127.0.0.1）
+    if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+        document.getElementById('devToolbarToggle').style.display = 'block';
+    }
+    </script>
+
     <script src="js/bankCardValidator.js?v=1.0.0"></script>
     <script src="js/bankCard.js?v=1.0.0"></script>
     <script src="js/kyc-app.js?v=1.0.11"></script>
