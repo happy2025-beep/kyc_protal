@@ -2513,7 +2513,7 @@ app.post('/api/submit-bind-card', async (req, res) => {
 });
 
 // 银行卡绑定接口（最终绑定）
-// 接口地址: POST http://1.95.91.139:8088/api/uc_92300/306426
+// 接口地址: POST http://1.95.91.139:9200/306426
 // 用途: 使用绑卡验证码完成最终的银行卡绑定
 app.post('/api/bind-bank-card-final', async (req, res) => {
   try {
@@ -2560,7 +2560,7 @@ app.post('/api/bind-bank-card-final', async (req, res) => {
       });
     }
 
-    const apiUrl = 'http://1.95.91.139:8088/api/uc_92300/306426';
+    const apiUrl = 'http://1.95.91.139:9200/306426';
 
     const requestData = {
       isFlat,

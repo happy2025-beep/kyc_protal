@@ -2496,8 +2496,154 @@ window.kycApp = {
      */
     async setupStep3() {
         console.log('📋 初始化步骤3：银行卡认证');
+        console.log('当前 userData:', {
+            user_id: this.userData.user_id,
+            session_id: this.userData.session_id,
+            isBankCardBound: this.userData.isBankCardBound,
+            bankAuthId: this.userData.bankAuthId
+        });
 
-        // ========== 0. 检查验证码 token 状态 ==========
+        // ========== 0. 先加载银行列表数据（用于后续查找银行名称） ==========
+        console.log('📤 加载银行列表数据...');
+        await this.populateBankSelect();
+        console.log('✅ 银行列表数据已加载，共', this.bankFullData ? this.bankFullData.length : 0, '家银行');
+
+        // ========== 1. 查询已认证的银行卡 ==========
+        // 每次进入步骤3都查询最新状态，以服务器端数据为准
+        if (this.userData.user_id) {
+            console.log('📤 查询用户是否已有认证的银行卡...');
+            console.log('   user_id:', this.userData.user_id);
+            try {
+                const queryResponse = await fetch('api/query-bank-card-info', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        is_flat: false,
+                        exchange_id: "0",
+                        user_id: this.userData.user_id,
+                        root_user_id: this.userData.user_id,
+                        is_admin: true,
+                        curr_ip: this.userData.clientIp || "0.0.0.0"
+                    })
+                });
+
+                const queryResult = await queryResponse.json();
+                console.log('📥 查询银行卡结果:', queryResult);
+
+                // 检查是否有已认证的银行卡
+                if (queryResult.success && queryResult.data && queryResult.data.length > 0) {
+                    const firstData = queryResult.data[0];
+                    if (firstData.items && firstData.items.length > 0) {
+                        // 找到银行卡记录
+                        const bankCardItem = firstData.items[0];
+                        console.log('✅ 发现银行卡记录:', bankCardItem);
+                        console.log('   bind_status:', bankCardItem.bind_status);
+                        console.log('   memo:', bankCardItem.memo);
+
+                        // 根据 bind_status 判断状态：
+                        // bind_status = "3" - 绑定成功
+                        // bind_status = "2" - 绑定失败（已认证但绑定失败）
+                        // bind_status = "1" - 待绑定（已认证待绑定）
+
+                        // 根据 channel_bank_no 查找银行名称
+                        let bankName = bankCardItem.bank_name || '';
+                        console.log('   原始 bank_name:', bankName);
+                        console.log('   channel_bank_no:', bankCardItem.channel_bank_no);
+
+                        if (!bankName && bankCardItem.channel_bank_no) {
+                            console.log('   bank_name 为空，尝试通过 channel_bank_no 查找...');
+                            bankName = this.getBankNameByChannelNo(bankCardItem.channel_bank_no);
+                            console.log(`   通过 channel_bank_no ${bankCardItem.channel_bank_no} 查找到银行:`, bankName);
+                        }
+
+                        if (bankCardItem.bind_status === '3') {
+                            // 绑定成功 - 设置为已绑定状态
+                            console.log('✅ 银行卡已绑定成功');
+                            this.userData.isBankCardBound = true;
+                            this.userData.bankCard = bankCardItem.bank_account || '';
+                            this.userData.recognizedBankName = bankName;
+                            this.userData.bankAuthId = bankCardItem.id || '';
+                            this.userData.selectedBankChannelNo = bankCardItem.channel_bank_no || '';
+                        } else {
+                            // 已认证但未绑定成功 - 保存认证ID，跳过认证步骤
+                            console.log('⚠️ 银行卡已认证但未绑定，状态:', bankCardItem.bind_status);
+                            console.log('   失败原因:', bankCardItem.memo);
+                            this.userData.isBankCardBound = false; // ✅ 明确设置为 false
+                            this.userData.bankAuthId = bankCardItem.id || '';
+                            this.userData.bankCard = bankCardItem.bank_account || '';
+                            this.userData.recognizedBankName = bankName;
+                            this.userData.selectedBankChannelNo = bankCardItem.channel_bank_no || '';
+                            this.userData.bankBindFailReason = bankCardItem.memo || ''; // 保存失败原因
+                        }
+
+                        // 保存状态
+                        this.saveUserDataToStorage();
+                    } else {
+                        // 没有银行卡记录
+                        console.log('ℹ️ 未找到银行卡记录');
+                        this.userData.isBankCardBound = false;
+                        this.saveUserDataToStorage();
+                    }
+                } else {
+                    // 查询失败或无数据
+                    console.log('ℹ️ 查询结果为空或失败');
+                    this.userData.isBankCardBound = false;
+                    this.saveUserDataToStorage();
+                }
+            } catch (error) {
+                console.error('❌ 查询银行卡失败:', error);
+                // 查询失败不影响流程，继续执行
+            }
+        } else {
+            console.warn('⚠️ 缺少 user_id，跳过银行卡状态查询');
+            console.log('   提示：需要先完成步骤1和步骤2以获取 user_id');
+        }
+
+        // ========== 1. 检查银行卡绑定状态并更新UI ==========
+        const btnStep3 = document.getElementById('btnStep3');
+
+        if (this.userData.isBankCardBound) {
+            console.log('✅ 银行卡已绑定，更新按钮状态');
+            if (btnStep3) {
+                btnStep3.textContent = '已绑定';
+                btnStep3.disabled = true;
+                btnStep3.style.backgroundColor = '#909399';
+                btnStep3.style.cursor = 'not-allowed';
+            }
+            // 禁用表单输入
+            const form = document.getElementById('step3Form');
+            if (form) {
+                const inputs = form.querySelectorAll('input, button[type="button"]');
+                inputs.forEach(input => {
+                    if (input.id !== 'btnStep3') { // 不禁用提交按钮（已经禁用了）
+                        input.disabled = true;
+                    }
+                });
+            }
+        } else if (this.userData.bankAuthId) {
+            // 已认证但未绑定 - 更新按钮文字为"绑定"
+            console.log('⚠️ 银行卡已认证但未绑定，按钮显示为"绑定"');
+            if (btnStep3) {
+                btnStep3.textContent = '绑定';
+            }
+            // 更新短信按钮文字
+            const btnSendBankSmsCode = document.getElementById('btnSendBankSmsCode');
+            if (btnSendBankSmsCode && !btnSendBankSmsCode.disabled) {
+                btnSendBankSmsCode.textContent = '发送绑定验证码';
+            }
+        } else {
+            // 未认证 - 按钮显示为"认证"
+            if (btnStep3) {
+                btnStep3.textContent = '认证';
+            }
+            // 更新短信按钮文字
+            const btnSendBankSmsCode = document.getElementById('btnSendBankSmsCode');
+            if (btnSendBankSmsCode && !btnSendBankSmsCode.disabled) {
+                btnSendBankSmsCode.textContent = '发送认证验证码';
+            }
+        }
+
+        // ========== 1. 检查验证码 token 状态 ==========
         if (!this.userData.captchaToken) {
             console.log('⚠️ 缺少验证码 token');
 
@@ -2535,7 +2681,7 @@ window.kycApp = {
             console.log('✅ 使用现有的验证码 token:', this.userData.captchaToken);
         }
 
-        // ========== 1. 填充只读字段 ==========
+        // ========== 2. 填充只读字段 ==========
 
         // 资金账号（动态获取）
         // 立即获取并显示 fund_account
@@ -2549,6 +2695,45 @@ window.kycApp = {
 
         // 填充手机号码（默认值，用户可修改）
         document.getElementById('step3Mobile').value = this.userData.mobile || '';
+
+        // ⭐ 清空验证码输入框（每次进入步骤3都清空，确保不使用旧验证码）
+        const smsCodeInput = document.getElementById('bankSmsCode');
+        if (smsCodeInput) {
+            smsCodeInput.value = '';
+            console.log('✅ 已清空验证码输入框');
+        }
+
+        // 填充银行卡号（如果已认证但未绑定）
+        if (this.userData.bankCard && this.userData.bankAuthId && !this.userData.isBankCardBound) {
+            const bankCardInput = document.getElementById('bankCard');
+            if (bankCardInput) {
+                // 格式化银行卡号（每4位空格）
+                const formattedCard = this.userData.bankCard.replace(/(.{4})/g, '$1 ').trim();
+                bankCardInput.value = formattedCard;
+
+                // 显示识别成功的银行
+                if (this.userData.recognizedBankName) {
+                    document.getElementById('recognizedBankName').textContent = this.userData.recognizedBankName;
+                    document.getElementById('bankRecognitionSuccess').style.display = 'inline';
+                    console.log('✅ 已填充银行信息:', this.userData.recognizedBankName);
+                }
+
+                console.log('✅ 已填充银行卡信息:', {
+                    bankCard: this.userData.bankCard,
+                    bankName: this.userData.recognizedBankName,
+                    channelBankNo: this.userData.selectedBankChannelNo
+                });
+
+                // 如果有绑定失败的原因，显示提示
+                if (this.userData.bankBindFailReason) {
+                    const errorElement = document.getElementById('bankCardError');
+                    if (errorElement) {
+                        errorElement.textContent = `上次绑定失败: ${this.userData.bankBindFailReason}`;
+                        errorElement.style.color = '#E6A23C'; // 橙色警告
+                    }
+                }
+            }
+        }
 
         console.log('✅ 只读字段填充完成（fund_account 稍后动态获取）:', {
             userName: this.userData.realName,
@@ -2731,15 +2916,20 @@ window.kycApp = {
             // 保存表单数据
             this.userData.bankCard = document.getElementById('bankCard').value.replace(/\s/g, '');
             this.userData.bankPhone = document.getElementById('step3Mobile').value.trim();
-            const bankSmsCode = document.getElementById('bankSmsCode').value.trim();
 
-            console.log('📋 步骤3表单数据:', {
-                bankName: this.userData.recognizedBankName,
-                bankCode: this.userData.bankCode,
-                bankCard: this.userData.bankCard,
-                bankPhone: this.userData.bankPhone,
-                smsCode: bankSmsCode
-            });
+            // ⭐ 重要：每次提交都从输入框获取最新的验证码
+            const bankSmsCodeInput = document.getElementById('bankSmsCode');
+            const bankSmsCode = bankSmsCodeInput ? bankSmsCodeInput.value.trim() : '';
+
+            console.log('📋 步骤3表单数据:');
+            console.log('  银行名称:', this.userData.recognizedBankName);
+            console.log('  银行代码:', this.userData.bankCode);
+            console.log('  银行卡号:', this.userData.bankCard);
+            console.log('  手机号:', this.userData.bankPhone);
+            console.log('  ⭐ 验证码（从输入框获取）:', bankSmsCode);
+            console.log('  验证码长度:', bankSmsCode.length);
+            console.log('  验证码输入框元素:', bankSmsCodeInput ? '存在' : '不存在');
+            console.log('  当前是否已认证:', this.userData.bankAuthId ? '是(ID:' + this.userData.bankAuthId + ')' : '否');
 
             this.showLoading('正在提交...');
 
@@ -2792,7 +2982,7 @@ window.kycApp = {
                     console.log('🔄 检测到已完成认证，直接进入绑定阶段...');
                     this.showLoading('正在绑定银行卡...');
 
-                    // ⭐ 直接调用绑定接口 /306426
+                    // ⭐ 调用绑定接口 /306426（端口9200）
                     const bindResponse = await fetch('api/bind-bank-card-final', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -2835,6 +3025,8 @@ window.kycApp = {
                         this.showMessage('success', '银行卡绑定成功！');
                         // 清除认证标志，以便下次重新开始
                         delete this.userData.bankAuthId;
+                        // ✅ 保存绑定成功状态
+                        this.userData.isBankCardBound = true;
                         // 保存到 sessionStorage
                         this.saveUserDataToStorage();
                         // 跳转到步骤4
@@ -3107,15 +3299,20 @@ window.kycApp = {
                 console.log('✅ [获取FundAccount] 成功获取 fund_account:', this.userData.fundAccount);
             }
 
-            // 2. 发送认证验证码
-            this.showLoading('正在发送验证码...');
+            // 2. 判断发送认证短信还是绑定短信
+            // 如果已有 bankAuthId，说明已认证，应发送绑定短信
+            const actionType = this.userData.bankAuthId ? '2' : '1';
+            const actionName = this.userData.bankAuthId ? '绑定' : '认证';
 
-            console.log('📤 [认证短信] 发送验证码请求:', {
+            this.showLoading(`正在发送${actionName}验证码...`);
+
+            console.log(`📤 [${actionName}短信] 发送验证码请求:`, {
                 bank_name: this.userData.recognizedBankName,
                 bank_code: '1001',
                 fund_account: this.userData.fundAccount,
                 mobile: bankPhone,
-                action_type: '1'  // 1表示认证
+                action_type: actionType,  // 1=认证, 2=绑定
+                bankAuthId: this.userData.bankAuthId || '无'
             });
 
             const response = await fetch('api/send-bank-sms-code', {
@@ -3127,7 +3324,7 @@ window.kycApp = {
                     bank_code: '1001',
                     bank_pro_code: 'ljyClearing',
                     fund_account: this.userData.fundAccount,
-                    action_type: '1',  // 1表示认证
+                    action_type: actionType,  // 根据是否已认证动态设置
                     mobile: bankPhone,
                     trans_code: '10000111',
                     curr_ip: this.userData.clientIp || '0.0.0.0',
@@ -3139,10 +3336,10 @@ window.kycApp = {
 
             this.hideLoading();
 
-            console.log('📥 [认证短信] 响应结果:', result);
+            console.log(`📥 [${actionName}短信] 响应结果:`, result);
 
             if (result.success) {
-                this.showMessage('success', '认证验证码已发送，请查收短信（验证码有效期2分钟，请尽快输入）');
+                this.showMessage('success', `${actionName}验证码已发送，请查收短信（验证码有效期2分钟，请尽快输入）`);
 
                 // 倒计时
                 this.startCountdown(btnSendBankSmsCode, 60);
@@ -3158,7 +3355,8 @@ window.kycApp = {
             }
         } catch (error) {
             this.hideLoading();
-            console.error('❌ [认证短信] 发送失败:', error);
+            const actionName = this.userData.bankAuthId ? '绑定' : '认证';
+            console.error(`❌ [${actionName}短信] 发送失败:`, error);
             this.showMessage('error', error.message || '发送验证码失败，请重试');
         }
     },
@@ -3318,8 +3516,14 @@ window.kycApp = {
      * 填充银行选择下拉框（从本地 JSON 文件加载，已包含完整的 bank_no 长码）
      */
     async populateBankSelect() {
+        // ✅ 缓存检查：如果已加载，直接返回
+        if (this.bankFullData && this.bankFullData.length > 0) {
+            console.log('✅ 银行列表已缓存，跳过加载（共', this.bankFullData.length, '家银行）');
+            return;
+        }
+
         console.log('📂 开始加载银行列表...');
-        
+
         try {
             // ✅ 优先从本地 JSON 文件加载（已包含完整的 bank_no 长码数据）
             console.log('📂 从本地 JSON 文件加载银行列表...');
@@ -3775,6 +3979,30 @@ window.kycApp = {
         // 最终兜底：默认中行长码
         console.warn(`❌ 未找到 ${bankName} 的长码，使用默认值（中行）`);
         return '104100000004';
+    },
+
+    /**
+     * 根据渠道长编码（channel_bank_no）查找银行名称
+     * @param {String} channelBankNo 银行渠道长编码
+     * @returns {String} 银行名称
+     */
+    getBankNameByChannelNo(channelBankNo) {
+        if (!channelBankNo) {
+            console.warn('⚠️ channel_bank_no 为空');
+            return '';
+        }
+
+        // 从完整银行数据中查找
+        if (this.bankFullData && this.bankFullData.length > 0) {
+            const bankData = this.bankFullData.find(b => b.bank_no === channelBankNo);
+            if (bankData && bankData.bank_name) {
+                console.log(`✅ 找到 ${channelBankNo} 对应的银行:`, bankData.bank_name);
+                return bankData.bank_name;
+            }
+        }
+
+        console.warn(`❌ 未找到 channel_bank_no ${channelBankNo} 对应的银行`);
+        return '';
     },
 
     /**
