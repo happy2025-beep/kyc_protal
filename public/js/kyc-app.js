@@ -3161,11 +3161,24 @@ window.kycApp = {
                     }
 
                     // ⭐ 提示用户输入新的绑定验证码并重新提交
-                    this.showMessage('info', '✅ 银行卡认证成功！\n\n📱 绑定验证码已发送到您的手机，请查收短信后输入新的验证码并再次点击"提交"完成绑定。');
+                    this.showMessage('success', '银行卡认证成功！\n\n绑定验证码已发送到您的手机，请查收短信后输入新的验证码并再次点击"提交"完成绑定。');
 
                     // 清空验证码输入框，提示用户输入新验证码
                     document.getElementById('bankSmsCode').value = '';
                     document.getElementById('bankSmsCode').focus();
+
+                    // ⭐ 更新按钮文本为"绑定"
+                    const btnStep3 = document.getElementById('btnStep3');
+                    if (btnStep3) {
+                        btnStep3.textContent = '绑定';
+                        console.log('✅ 按钮文本已更新为"绑定"');
+                    }
+
+                    // 更新发送验证码按钮文本
+                    const btnSendBankSmsCode = document.getElementById('btnSendBankSmsCode');
+                    if (btnSendBankSmsCode) {
+                        btnSendBankSmsCode.textContent = '发送绑定验证码';
+                    }
                 }
 
             } catch (error) {
