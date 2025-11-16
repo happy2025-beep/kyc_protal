@@ -1807,7 +1807,7 @@ window.kycApp = {
                 provinceCode: provinceCode6,
                 cityCode: cityCode6,
                 districtCode: districtCode6,
-                recommendMobile: this.userData.referrerMobile || '13540902450'  // 默认推荐人手机号
+                recommendMobile: this.userData.referrerMobile || '15779002477'  // 默认推荐人手机号
             },
             stepActive: 2,
             videoAuthInfo: {
@@ -1945,7 +1945,7 @@ window.kycApp = {
             provinceCode: provinceCode6,
             cityCode: cityCode6,
             districtCode: districtCode6,
-            recommendMobile: this.userData.referrerMobile || '13540902450',  // 默认推荐人手机号
+            recommendMobile: this.userData.referrerMobile || '15779002477',  // 默认推荐人手机号
             publicKey: publicKey,
             willId: this.userData.willId,
             app_id: 'qoRz2jvwG0HmaEfxr7lV',
